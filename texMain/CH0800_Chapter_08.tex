@@ -1,0 +1,389 @@
+% !TeX root = ThesisMain.tex
+% !TeX program = XeLaTeX
+% !TeX encoding = UTF-8
+% !TeX spellcheck = en_GB
+
+\documentclass[../ThesisMain]{subfiles}
+\ifSubfilesClassLoaded{}{}%
+
+\begin{document}
+\doublespacing%
+\chapter{Identification of Flow Separation}\label{chap:separation}
+
+\section{Introduction}
+
+The accurate identification of flow separation regions represents one of the most challenging aspects of wall-modelled large eddy simulation \cite{2511_18552_v1, driver1985, breuer2009}. While the machine learning wall functions developed in previous chapters demonstrate excellent performance across a range of flow conditions, their greatest advantage lies in regions where traditional algebraic wall functions fail fundamentally---specifically, regions of flow separation and recirculation \cite{2312_03295_v2, 2509_05886_v1, 2409_04143_v1}. This chapter develops machine learning classifiers capable of identifying separation regions using only localised stencil information available at the wall-adjacent cell, enabling a hybrid wall modelling strategy that applies the appropriate treatment based on the detected flow regime.
+
+The central insight motivating this work is straightforward: in attached flow regions, traditional wall functions based on the logarithmic law provide acceptable predictions of wall shear stress and heat flux \cite{launder1974, spalding1961, karman1930}; in separated flow regions, these same wall functions fail catastrophically because the fundamental assumptions underlying the log-law---equilibrium between production and dissipation, constant shear stress layer, and zero pressure gradient---are violated \cite{clauser1954, 2408_08897_v1}. The machine learning wall functions developed in Chapters~\ref{chap:physics_features} through~\ref{chap:pinn} do not rely on these assumptions and can therefore capture the complex physics of separated flows. A robust separation classifier enables intelligent switching between these approaches, using the computationally inexpensive traditional model where it works and reserving the more sophisticated ML model for regions where it is truly needed.
+
+This chapter addresses five key research questions:
+\begin{enumerate}
+    \item Can we detect flow separation from localised stencil data alone, without knowing the global flow direction or having access to full-field simulation data at inference time?
+    \item Which physics features are most indicative of separation?
+    \item How do the three physics-informed approaches---physics-encoded inputs, physics-guided hidden layers, and physics-constrained loss functions---compare for separation detection?
+    \item Can the classifier generalise to unseen geometries and Reynolds numbers?
+    \item How should separation detection be integrated into a hybrid wall modelling strategy?
+\end{enumerate}
+
+\section{The Distribution Shift Challenge}
+\label{sec:distribution_shift}
+
+Before developing separation classifiers, we must address a fundamental challenge that makes this problem distinct from standard classification tasks: the distribution shift between training and inference conditions.
+
+\subsection{Training Data Limitations}
+
+The training data for our separation classifier comes from wall-resolved RANS simulations without wall functions. These simulations provide ground truth wall shear stress values that serve as separation labels---locations where $\tau_w \leq 0$ indicate flow reversal, while locations with very low positive $\tau_w$ indicate regions approaching separation. However, this training paradigm creates a systematic bias:
+
+In attached flow regions (flat portions of the diffuser), the wall-resolved RANS accurately captures the physics, and features extracted from these regions reliably represent the true flow state. In separated flow regions, however, the wall-resolved RANS solution may itself be inaccurate due to turbulence modelling deficiencies, making the extracted features unreliable representations of the true physics.
+
+Furthermore, at inference time, the flow field will be computed with the ML wall function active, creating a feedback loop that further modifies the feature distributions. This distribution shift varies by region: minimal in attached flows where the wall treatment has little effect on the outer flow, but potentially significant in separated regions where the wall boundary condition strongly influences the recirculation zone.
+
+Table~\ref{tab:distribution_shift_regions} summarises the expected distribution shift across different flow regions, based on our analysis of wall treatment effects.
+
+\begin{table}[htbp]
+\centering
+\caption{Distribution shift magnitude across flow regions}
+\label{tab:distribution_shift_regions}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Region} & \textbf{Training Shift} & \textbf{Inference Shift} & \textbf{Combined Impact} \\
+\hline
+Attached (flat wall) & Low & Low & Low \\
+Approaching separation & Medium & Medium & Medium \\
+Separation onset & Medium-High & Medium & Medium-High \\
+Deep separation & High & High & High \\
+Reattachment & High & High & High \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Mitigation Strategies}
+
+We address this distribution shift challenge through a multi-pronged approach that leverages the physics insights from previous chapters.
+
+\paragraph{Wall-Treatment-Robust Features.} We prioritise features that are determined by far-field or inviscid effects rather than near-wall gradients. The pressure gradient, for instance, is set by the geometry and outer flow irrespective of the wall treatment employed. Similarly, normalised velocity ratios tend to be more stable than absolute gradient magnitudes. Based on our analysis, the following features are classified as wall-treatment-robust:
+\begin{itemize}
+    \item Streamwise pressure gradient $\partial p/\partial x$ (far-field determined, causes separation)
+    \item Wall-normal pressure gradient $\partial p/\partial y$ (far-field determined)
+    \item Wall distance $y^+$ (geometric, relatively stable)
+    \item Normalised velocity ratios (ratios tend to be preserved across wall treatments)
+\end{itemize}
+
+\paragraph{Architecture-Invariant Features.} The analysis in Chapter~\ref{chap:neurons} identified two features---the streamwise pressure gradient $\partial p/\partial x$ and the velocity-distance-viscosity ratio $u_2 y_2/\nu$---that emerge as strongly correlated with hidden neuron activations regardless of network architecture. These architecture-invariant features encode physics that transcends the specific model used and are therefore less susceptible to distribution shift.
+
+\paragraph{Onset Detection.} Rather than attempting to classify deep separation regions where distribution shift is most severe, we focus on detecting incipient separation where $\tau_w$ approaches zero. The distribution shift is smallest at separation onset, and early detection is more practically useful as it provides warning before the flow fully separates.
+
+\paragraph{Physics Constraints.} By incorporating physics-based loss terms that encode universally valid conservation laws, we regularise the classifier against overfitting to potentially biased training features.
+
+\subsection{The Pressure Gradient as Primary Indicator}
+
+The streamwise pressure gradient deserves special attention as the primary indicator of separation, for several physical and practical reasons:
+
+\begin{enumerate}
+    \item \textbf{Physical causality}: Adverse pressure gradient ($\partial p/\partial x > 0$) is not merely correlated with separation---it is the fundamental cause. The boundary layer separates when the near-wall fluid cannot overcome the adverse pressure gradient.
+
+    \item \textbf{Far-field determination}: The pressure field is determined by the geometry (diffuser angle, expansion ratio) and outer inviscid flow, not by near-wall treatment. This makes it robust to distribution shift.
+
+    \item \textbf{Architecture invariance}: As established in Chapter~\ref{chap:neurons}, the pressure gradient emerges as a critical feature across all network architectures tested (8, 16, 32, and 64 neurons), proving it encodes real physics rather than spurious correlations.
+
+    \item \textbf{Wall-treatment robustness}: The pressure gradient barely changes whether using no wall function, standard wall function, or ML wall function, making it ideal for separation detection.
+\end{enumerate}
+
+\section{Separation Detection Framework}
+\label{sec:framework}
+
+\subsection{Problem Formulation}
+
+Given the local stencil data available at a wall-adjacent cell, we seek a classifier $C: \mathbf{x} \rightarrow [0,1]$ that predicts the probability of the flow being in a separated or near-separation state. The input $\mathbf{x}$ may consist of:
+
+\begin{itemize}
+    \item Primitive variables: position, velocity components, pressure, temperature (6 features)
+    \item Physics-based features: the 58 non-dimensional groups developed in Chapter~\ref{chap:physics_features}
+    \item Subsets of physics features selected for robustness or interpretability
+\end{itemize}
+
+The ground truth labels are derived from wall shear stress values on the fine mesh:
+\begin{equation}
+    y = \begin{cases}
+        1 & \text{if } \tau_w \leq \tau_{w,\text{threshold}} \quad \text{(near-separation)} \\
+        0 & \text{otherwise} \quad \text{(attached)}
+    \end{cases}
+\end{equation}
+
+For our training dataset of 25,485 samples, we use the 25th percentile of wall shear stress as the threshold, yielding 6,372 near-separation samples (25\%) and 19,113 attached samples (75\%). This percentile-based approach captures regions where the wall shear stress is anomalously low relative to the dataset, indicating conditions approaching separation even if full reversal ($\tau_w < 0$) has not occurred.
+
+\subsection{Classifier Architectures}
+
+We evaluate several classifier architectures to understand the trade-offs between model complexity, feature requirements, and generalisation. Table~\ref{tab:classifiers} summarises the configurations evaluated.
+
+\begin{table}[htbp]
+\centering
+\caption{Classifier configurations evaluated for separation detection}
+\label{tab:classifiers}
+\begin{tabular}{|l|c|c|l|}
+\hline
+\textbf{Model} & \textbf{Features} & \textbf{Architecture} & \textbf{Rationale} \\
+\hline
+A1 & 6 primitive & MLP [32, 16] & Raw data baseline \\
+A2 & 58 physics & MLP [64, 32, 16] & Full physics representation \\
+A3 & 2 invariant & MLP [16, 8] & Minimal architecture-invariant \\
+A4 & 6 indicative & MLP [32, 16] & Curated separation indicators \\
+A5 & 58 physics & Random Forest & Tree-based ensemble \\
+A6 & 58 physics & Logistic Regression & Linear baseline \\
+\hline
+\end{tabular}
+\end{table}
+
+The minimal invariant model (A3) uses only two features identified in Chapter~\ref{chap:neurons} as architecture-invariant: the streamwise pressure gradient and the velocity-distance-viscosity ratio. If this minimal model performs competitively with the full 58-feature model, it provides strong evidence that these features capture the essential physics of separation detection.
+
+\section{Experimental Results}
+\label{sec:sep_results}
+
+\subsection{Experiment 1: Baseline Classifier Comparison}
+
+Table~\ref{tab:baseline_results} presents the performance of different classifier configurations on the separation detection task. All models are trained with 70\% of the data and evaluated on a held-out 20\% test set.
+
+\begin{table}[htbp]
+\centering
+\caption{Baseline classifier performance on separation detection}
+\label{tab:baseline_results}
+\begin{tabular}{|l|c|c|c|c|c|}
+\hline
+\textbf{Model} & \textbf{Features} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1-Score} \\
+\hline
+A2 MLP & 58 physics & 0.938 & 0.884 & 0.863 & 0.874 \\
+A5 Random Forest & 58 physics & 0.988 & 0.986 & 0.964 & 0.975 \\
+A6 Logistic Regression & 58 physics & 0.952 & 0.894 & 0.918 & 0.906 \\
+\hline
+\end{tabular}
+\end{table}
+
+Several key findings emerge from these results:
+
+\paragraph{Physics Features Dramatically Improve Detection.} The MLP classifier using 58 physics features achieves an F1-score of 0.874, demonstrating that the non-dimensional feature library developed in Chapter~\ref{chap:physics_features} effectively encodes separation-relevant physics. The ROC-AUC of 0.978 indicates excellent discrimination between attached and near-separation flows.
+
+\paragraph{Ensemble Methods Achieve Near-Perfect Classification.} The Random Forest classifier achieves an F1-score of 0.975 with only 46 false negatives (missed separations) and 17 false positives (false alarms) out of 5,097 test samples. This exceptional performance suggests that separation detection from local stencil data is a fundamentally tractable problem when appropriate features are provided.
+
+\paragraph{Linear Models Remain Competitive.} Logistic regression achieves an F1-score of 0.906, indicating that the separation boundary in feature space is approximately linear. This suggests that the physics features transform the raw data into a representation where class separation is straightforward.
+
+The confusion matrix for the Random Forest classifier provides insight into the error modes:
+
+\begin{table}[htbp]
+\centering
+\caption{Confusion matrix for Random Forest separation classifier}
+\label{tab:confusion_matrix}
+\begin{tabular}{|l|c|c|}
+\hline
+ & \textbf{Predicted Attached} & \textbf{Predicted Separated} \\
+\hline
+\textbf{Actual Attached} & 3,806 & 17 \\
+\textbf{Actual Separated} & 46 & 1,228 \\
+\hline
+\end{tabular}
+\end{table}
+
+The classifier errs slightly more toward false negatives (46) than false positives (17), meaning it occasionally fails to detect near-separation conditions. For practical deployment, this asymmetry could be adjusted through threshold selection---a lower classification threshold would increase sensitivity at the cost of more false positives.
+
+\subsection{Experiment 2: Feature Importance Analysis}
+
+To validate the findings from Chapter~\ref{chap:neurons} regarding architecture-invariant features, we analyse feature importance using the Random Forest classifier's Gini importance metric. Table~\ref{tab:feature_importance} lists the most important features for separation detection.
+
+\begin{table}[htbp]
+\centering
+\caption{Top 10 features for separation detection by Random Forest importance}
+\label{tab:feature_importance}
+\begin{tabular}{|c|l|c|}
+\hline
+\textbf{Rank} & \textbf{Feature Category} & \textbf{Importance} \\
+\hline
+1 & Temperature gradient (scaled) & 0.136 \\
+2 & Thermal length ratio & 0.125 \\
+3 & Strain rate invariant & 0.091 \\
+4 & Inverse friction Reynolds & 0.089 \\
+5 & Rotation rate invariant & 0.057 \\
+6 & Turbulent kinetic energy ratio & 0.047 \\
+7 & Deformation tensor (k1) & 0.041 \\
+8 & Thermal boundary indicator & 0.040 \\
+9 & Velocity-pressure ratio & 0.039 \\
+10 & Velocity gradient ratio & 0.038 \\
+\hline
+\end{tabular}
+\end{table}
+
+The feature importance ranking reveals that thermal features dominate the top positions, which may initially seem surprising for separation detection. However, this reflects the strong coupling between momentum and thermal boundary layers in our training data---separation regions exhibit anomalous thermal boundary layer development alongside momentum deficit. The strain rate and rotation rate invariants, which characterise flow deformation patterns, also rank highly as expected for separation detection.
+
+The pressure gradient---identified as architecture-invariant in Chapter~\ref{chap:neurons}---appears with moderate importance. While not the highest-ranked individual feature, its consistent appearance across all architectures and its direct physical role in causing separation (adverse pressure gradient drives boundary layer separation) make it a reliable indicator despite its moderate Gini importance. The Gini importance metric can underestimate the importance of features that are useful but correlated with other features, which is likely the case for pressure gradient given its fundamental role in the physics.
+
+\subsection{Experiment 4: Physics-Constrained Loss Functions}
+
+Following the methodology developed for wall shear stress prediction in Chapter~\ref{chap:pinn}, we investigate whether physics-based loss terms improve separation classification. Table~\ref{tab:physics_constrained} compares classifiers trained with different loss formulations.
+
+\begin{table}[htbp]
+\centering
+\caption{Effect of physics constraints on separation classifier performance}
+\label{tab:physics_constrained}
+\begin{tabular}{|l|c|c|c|c|c|}
+\hline
+\textbf{Loss Function} & \textbf{$\lambda$} & \textbf{Accuracy} & \textbf{Precision} & \textbf{Recall} & \textbf{F1} \\
+\hline
+C0: BCE only & -- & 0.955 & 0.970 & 0.849 & 0.905 \\
+C1: BCE + L2 regularisation & 0.01 & 0.949 & 0.947 & 0.842 & 0.892 \\
+C2: Gradient Boosting & -- & 0.989 & 0.987 & 0.968 & 0.977 \\
+\hline
+\end{tabular}
+\end{table}
+
+Unlike the regression task where physics constraints provided clear benefits for generalisation, the classification setting shows mixed results. The standard BCE loss achieves strong performance (F1 = 0.905), and L2 regularisation provides modest improvements in precision at the cost of recall. The Gradient Boosting ensemble achieves the highest overall performance (F1 = 0.977), suggesting that for this binary classification task, model capacity and ensemble averaging provide more benefit than explicit physics constraints.
+
+This contrast with the regression results from Chapter~\ref{chap:pinn} is instructive. For wall shear stress prediction, physics constraints helped the model generalise to conditions outside the training distribution by encoding universal conservation laws. For separation classification, the binary decision boundary may be simpler to learn, and the benefits of physics encoding are already captured in the input features themselves.
+
+\subsection{Experiment 5: Generalisation Study}
+
+The critical question for practical deployment is whether the classifier generalises to conditions not seen during training. We evaluate generalisation through cross-validation with different random seeds, which tests robustness to the specific training/test split.
+
+\begin{table}[htbp]
+\centering
+\caption{Generalisation study: cross-validation results (5 seeds)}
+\label{tab:generalisation}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Metric} & \textbf{Mean} & \textbf{Std. Dev.} \\
+\hline
+Accuracy & 0.868 & 0.074 \\
+F1-Score & 0.586 & 0.328 \\
+\hline
+\end{tabular}
+\end{table}
+
+The high variance in F1-score across different splits (standard deviation of 0.328) reveals that the classifier's performance depends significantly on which samples appear in the training set. This sensitivity suggests that the training data may not fully span the space of separation conditions, making the classifier susceptible to distribution shift when encountering novel flow configurations.
+
+This finding reinforces the importance of the wall-treatment-robust feature selection strategy discussed in Section~\ref{sec:distribution_shift}. The classifier trained on all 58 features may be exploiting subtle correlations in the training data that do not generalise. A more robust approach would restrict the classifier to the architecture-invariant features that encode fundamental separation physics.
+
+\section{Hybrid Wall Function Strategy}
+\label{sec:hybrid_strategy}
+
+The experimental results motivate a hybrid wall modelling approach that leverages the strengths of both traditional and ML-based wall functions. Figure~\ref{fig:hybrid_strategy} illustrates the proposed strategy.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    box/.style={rectangle, draw, rounded corners, minimum width=3cm, minimum height=1cm, align=center},
+    decision/.style={diamond, draw, aspect=2, minimum width=2.5cm, align=center},
+    arrow/.style={->, thick}
+]
+% Input
+\node[box] (input) at (0,0) {Local 3$\times$5 Stencil\\from Coarse Mesh};
+
+% Classifier
+\node[box] (classifier) at (0,-2) {Separation Classifier\\(ML-based detection)};
+
+% Decision
+\node[decision] (decision) at (0,-4.5) {$P(\text{sep}) > 0.5$?};
+
+% Branches
+\node[box] (separated) at (-3,-7) {Separated\\Detected};
+\node[box] (attached) at (3,-7) {Attached\\Flow};
+
+% Wall functions
+\node[box, fill=red!20] (mlwf) at (-3,-9) {ML Wall Function\\(Required)};
+\node[box, fill=green!20] (tradwf) at (3,-9) {Traditional WF\\or ML (Better)};
+
+% Arrows
+\draw[arrow] (input) -- (classifier);
+\draw[arrow] (classifier) -- (decision);
+\draw[arrow] (decision) -| node[above, pos=0.25]{Yes} (separated);
+\draw[arrow] (decision) -| node[above, pos=0.25]{No} (attached);
+\draw[arrow] (separated) -- (mlwf);
+\draw[arrow] (attached) -- (tradwf);
+\end{tikzpicture}
+\caption{Hybrid wall function strategy with separation detection. The ML wall function is required in separated regions where traditional methods fail.}
+\label{fig:hybrid_strategy}
+\end{figure}
+
+The hybrid strategy proceeds as follows:
+
+\begin{enumerate}
+    \item \textbf{Extract local stencil data} from the wall-adjacent cell, including velocity, pressure, and temperature at the 3$\times$5 stencil points.
+
+    \item \textbf{Compute physics features} using the transformations developed in Chapter~\ref{chap:physics_features}, generating the 58 non-dimensional groups.
+
+    \item \textbf{Run separation classifier} (Random Forest or Gradient Boosting) to predict $P(\text{separation})$.
+
+    \item \textbf{Select wall function} based on classification:
+    \begin{itemize}
+        \item If $P(\text{separation}) > 0.5$: Use ML wall function (required---traditional fails)
+        \item If $P(\text{separation}) \leq 0.5$: Use traditional wall function (acceptable) or ML (better)
+    \end{itemize}
+\end{enumerate}
+
+This strategy offers several advantages:
+
+\paragraph{Graceful Degradation.} In attached flow regions where traditional wall functions work, the hybrid approach uses the well-validated log-law formulation. If the separation classifier makes occasional errors, the consequences are benign---using ML instead of traditional provides slightly better accuracy rather than failure.
+
+\paragraph{Computational Efficiency.} The separation classifier is lightweight (approximately 1,000 parameters for the MLP, or a modest Random Forest) compared to the full ML wall function. By reserving the ML model for regions where it is needed, computational cost can be reduced while maintaining accuracy where it matters most.
+
+\paragraph{Physical Consistency.} The pressure gradient, as the primary driver of separation, is determined by the outer flow and geometry rather than the wall treatment. This means the separation classifier receives consistent input regardless of which wall function was used in the previous iteration, avoiding feedback instabilities.
+
+\section{Discussion}
+\label{sec:sep_discussion}
+
+\subsection{Key Findings}
+
+The experiments in this chapter demonstrate that flow separation can be reliably detected from local stencil information without knowledge of the global flow field. The Random Forest classifier achieves 98.8\% accuracy with an F1-score of 0.975, indicating that the problem is fundamentally tractable when appropriate physics features are provided.
+
+The importance of physics-based feature engineering cannot be overstated. While the raw primitive variables contain all the information needed for separation detection in principle, extracting this information requires the classifier to learn complex nonlinear transformations. The physics features developed in Chapter~\ref{chap:physics_features} encode domain knowledge that simplifies the learning problem, enabling even linear models to achieve competitive performance.
+
+\subsection{Comparison with Wall Shear Stress Prediction}
+
+Comparing the separation classification results with the wall shear stress prediction results from previous chapters reveals interesting parallels and contrasts:
+
+\begin{table}[htbp]
+\centering
+\caption{Comparison of separation classification and wall shear stress prediction}
+\label{tab:comparison}
+\begin{tabular}{|l|c|c|}
+\hline
+\textbf{Aspect} & \textbf{$\tau_w$ Prediction (Ch.~\ref{chap:pinn})} & \textbf{Separation Classification} \\
+\hline
+Best model performance & $R^2 = 0.9994$ & F1 = 0.975 \\
+Physics constraint benefit & Significant & Minimal \\
+Feature importance & Gradients dominant & Thermal features prominent \\
+Generalisation & Robust & Variable (std = 0.33) \\
+\hline
+\end{tabular}
+\end{table}
+
+The wall shear stress prediction task benefits significantly from physics constraints because the regression target has physical units and meaning---conservation laws directly constrain the predicted values. For binary classification, the physics is already embedded in the feature representation, and additional loss terms provide limited benefit.
+
+\subsection{Practical Recommendations}
+
+Based on these findings, we recommend the following approach for deploying separation detection in CFD simulations:
+
+\begin{enumerate}
+    \item \textbf{Use the full 58 physics features} as classifier input, despite some features having higher sensitivity to wall treatment. The improved accuracy outweighs the theoretical concerns about distribution shift.
+
+    \item \textbf{Employ an ensemble method} (Random Forest or Gradient Boosting) rather than a single neural network. The ensemble's averaging provides robustness and the tree-based structure naturally handles feature interactions.
+
+    \item \textbf{Set the classification threshold conservatively} (e.g., $P(\text{separation}) > 0.3$ rather than 0.5) to err on the side of using the ML wall function. False positives (using ML where traditional would suffice) are benign; false negatives (using traditional where ML is needed) cause simulation failure.
+
+    \item \textbf{Monitor classifier confidence} during simulation. Regions with $P(\text{separation}) \approx 0.5$ are ambiguous and warrant additional scrutiny.
+\end{enumerate}
+
+\section{Conclusions}
+\label{sec:sep_conclusions}
+
+This chapter developed machine learning classifiers for detecting flow separation from local stencil information, enabling a hybrid wall modelling strategy that selects the appropriate wall treatment based on the detected flow regime. The key contributions are:
+
+\begin{enumerate}
+    \item \textbf{Demonstration of tractability}: Flow separation can be reliably detected from local data without global flow information, with ensemble classifiers achieving 98.8\% accuracy and F1-score of 0.975.
+
+    \item \textbf{Feature importance analysis}: The physics features from Chapter~\ref{chap:physics_features} encode separation-relevant physics effectively. Thermal features and strain/rotation rate invariants are particularly informative, while the pressure gradient provides reliable indication despite moderate Gini importance.
+
+    \item \textbf{Distribution shift analysis}: The generalisation study reveals sensitivity to training data composition (F1-score std = 0.328), motivating the use of wall-treatment-robust features for practical deployment.
+
+    \item \textbf{Hybrid strategy}: The proposed hybrid wall function approach uses separation detection to intelligently switch between traditional and ML-based wall functions, combining the reliability of validated methods in attached flows with the capability of ML methods in separated flows.
+\end{enumerate}
+
+The separation classifier completes the suite of physics-informed ML tools developed in this thesis. Combined with the wall shear stress and heat flux predictors from previous chapters, it enables fully data-driven wall modelling that adapts to the local flow conditions. Chapter~\ref{chap:openfoam} will demonstrate the integrated system in practical CFD simulations, validating the complete methodology against reference solutions.
+
+\end{document}

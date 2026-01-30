@@ -1,0 +1,21 @@
+% !TeX root = ThesisMain.tex
+% !TeX program = XeLaTeX
+% !TeX encoding = UTF-8
+% !TeX spellcheck = en_GB
+
+\documentclass[../ThesisMain]{subfiles}
+\ifSubfilesClassLoaded{}{}%
+
+\begin{document}
+\doublespacing%
+\begin{abstract}
+This thesis develops a unified machine learning framework for near-wall modeling in transitional and turbulent flows, with a focus on thermal and buoyancy-coupled boundary layers. Traditional wall functions used in computational fluid dynamics (CFD) often fail under complex conditions such as flow separation, heat transfer, or strong curvature. To address these limitations, we propose a data-driven wall function model trained on structured stencil inputs from coarse mesh simulations, supervised by corresponding high-fidelity fine mesh results.
+
+The framework introduces a library of non-dimensional features grounded in fluid mechanics, enabling physically-informed learning across regimes and Reynolds numbers. Three modeling strategies are explored: physics-encoded inputs, neuron-feature alignment in hidden layers, and physics-constrained learning via local residual loss terms derived from the Navier--Stokes and energy equations.
+
+Validation is performed across passive and buoyancy-coupled thermal flows in 2D and extended to 3D cases, demonstrating strong generalization to untrained geometries and conditions. The model is integrated directly into the OpenFOAM solver as a custom boundary condition using a Python-C++ interface. Compared to classical wall functions, the learned model provides more accurate wall-adjacent velocity, shear stress, and heat flux predictions, particularly in regions of flow separation or vertical thermal deflection.
+
+\textbf{Keywords:} Wall functions, Physics-informed learning, Neural networks, CFD, Heat transfer, Buoyancy, OpenFOAM
+\end{abstract}
+\newpage   
+\end{document}

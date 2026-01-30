@@ -1,0 +1,344 @@
+% !TeX root = ThesisMain.tex
+% !TeX program = XeLaTeX
+% !TeX encoding = UTF-8
+% !TeX spellcheck = en_GB
+
+\documentclass[../ThesisMain]{subfiles}
+\ifSubfilesClassLoaded{}{}%
+
+\begin{document}
+\doublespacing%
+\chapter{Conclusion and Future Work}\label{chap:conclusion}
+
+\section{Summary of Contributions}
+
+This thesis has developed a comprehensive framework for physics-informed machine learning wall functions applicable to turbulent and transitional flows with heat transfer \cite{1701_07102_v2, raissi2019physics, 2206_05226_v2}. The research addresses a fundamental challenge in computational fluid dynamics: the accurate prediction of wall shear stress and heat flux in complex flow conditions where traditional algebraic wall functions fail \cite{launder1974, 2309_02109_v1, 2409_04143_v1}. The main contributions of this work are summarised below.
+
+\subsection{A Unified Framework for Physics-Informed Wall Modelling}
+
+The central contribution of this thesis is the development and systematic evaluation of three complementary approaches to incorporating physics knowledge into neural network wall functions:
+
+\begin{enumerate}
+    \item \textbf{Method A: Physics-Encoded Inputs} (Chapter~\ref{chap:physics_features}) --- A library of 58 non-dimensional feature variables derived from fluid mechanics principles \cite{ling2016, 1905_07510_v2}, transforming raw primitive variables into physics-meaningful representations that enable learning across Reynolds numbers and flow regimes \cite{2210_15384_v1, 2307_13144_v1}.
+
+    \item \textbf{Method B: Physics-Guided Hidden Layers} (Chapter~\ref{chap:neurons}) --- Analysis of neuron-feature correlations revealing that neural networks spontaneously learn physics-aligned representations, with architecture-invariant features emerging consistently across different network configurations.
+
+    \item \textbf{Method C: Physics-Constrained Learning} (Chapter~\ref{chap:pinn}) --- Local stencil-based physics-informed neural networks (PINNs) \cite{raissi2019physics, 2511_14497_v1, 2503_17704_v1} that incorporate momentum, energy, and continuity residuals computed from finite differences, providing physics regularisation without requiring automatic differentiation through the network \cite{2205_08663_v2, 2409_19851_v1}.
+\end{enumerate}
+
+These three methods are not mutually exclusive but rather complementary, and the thesis demonstrates how they can be combined for optimal performance.
+
+\subsection{Dual-Mesh Training Methodology}
+
+A key methodological contribution is the dual-mesh training approach that enables supervised learning of wall functions:
+
+\begin{itemize}
+    \item \textbf{Coarse mesh inputs}: Local 3$\times$5 stencils extracted from meshes with $y^+ \approx 5$--10 at the first cell, representing typical industrial CFD practice.
+    \item \textbf{Fine mesh targets}: Wall shear stress and heat flux from wall-resolved simulations with $y^+ < 2$, providing ground truth without requiring DNS or experimental data.
+\end{itemize}
+
+This approach bridges the gap between the coarse meshes used in practical simulations and the accuracy achievable with wall-resolved computations, without the prohibitive computational cost of the latter.
+
+\subsection{Comprehensive Training Dataset}
+
+The thesis establishes a diverse training dataset comprising 244 simulation cases:
+
+\begin{itemize}
+    \item 180 asymmetric diffuser configurations with varying expansion ratios and Reynolds numbers
+    \item 60 nozzle (contraction) configurations providing favourable pressure gradient conditions
+    \item 4 channel flow cases for equilibrium boundary layer validation
+\end{itemize}
+
+This dataset of 25,485 training samples spans a wide range of flow conditions including attached flows, adverse pressure gradients, and near-separation regions, enabling robust generalisation.
+
+\subsection{Flow Separation Detection}
+
+Chapter~\ref{chap:separation} extends the framework to classification, developing machine learning classifiers that identify flow separation regions from local stencil data alone. This enables a hybrid wall modelling strategy:
+
+\begin{itemize}
+    \item In separated regions where traditional wall functions fail: ML wall function is applied
+    \item In attached regions where traditional methods work: either approach may be used
+\end{itemize}
+
+The Random Forest classifier achieves 98.8\% accuracy (F1 = 0.975) in detecting near-separation conditions, demonstrating that this classification problem is fundamentally tractable with appropriate physics features.
+
+\subsection{OpenFOAM Integration}
+
+The practical applicability of the developed methods is demonstrated through direct integration into the OpenFOAM solver framework. The implementation includes:
+
+\begin{itemize}
+    \item Custom boundary conditions for velocity and temperature
+    \item Python-C++ interface for neural network inference
+    \item Modular design supporting different ML architectures and physics constraints
+\end{itemize}
+
+\section{Key Findings}
+
+\subsection{Physics-Encoded Inputs (Method A)}
+
+The systematic evaluation of physics-based input features in Chapter~\ref{chap:physics_features} yielded several important findings:
+
+\paragraph{Feature Engineering Dramatically Improves Performance.} Replacing the 6 primitive input variables (position, velocity, pressure, temperature) with 58 physics-based non-dimensional groups improves wall shear stress prediction from $R^2 = 0.89$ to $R^2 = 0.95$. This 6\% improvement in explained variance corresponds to a substantial reduction in prediction error, particularly in challenging flow conditions.
+
+\paragraph{Non-Dimensional Formulation Enables Generalisation.} The physics features are constructed as non-dimensional groups following Buckingham Pi theorem principles. This ensures that the learned relationships are scale-invariant, enabling the model trained at one Reynolds number to generalise to others without retraining.
+
+\paragraph{Feature Categories Have Different Importance.} The 58 features can be categorised by their physical origin:
+\begin{itemize}
+    \item Wall-distance features ($y^+$, log-law ratios): Essential for capturing the boundary layer structure
+    \item Velocity gradient features (shear, strain, rotation): Critical for separation detection
+    \item Pressure gradient features: Primary indicators of adverse conditions
+    \item Thermal features: Important for heat transfer prediction and separation detection
+\end{itemize}
+
+\paragraph{Curated Feature Subsets Approach Full Performance.} Using only 17 separation-indicative features achieves 95\% of the performance of the full 58-feature model, suggesting that the feature library contains redundancy that could be exploited for computational efficiency.
+
+\subsection{Physics-Guided Hidden Layers (Method B)}
+
+The analysis of hidden layer representations in Chapter~\ref{chap:neurons} revealed unexpected insights into how neural networks learn physics:
+
+\paragraph{Neurons Spontaneously Align with Physics Features.} Despite being trained only to minimise prediction error on wall shear stress and heat flux, hidden layer neurons develop strong correlations with physics-meaningful features. Correlation coefficients exceeding 0.8 are observed between individual neurons and features such as pressure gradient, velocity-distance ratios, and thermal indicators.
+
+\paragraph{Architecture-Invariant Features Emerge.} Two features---the streamwise pressure gradient $\partial p/\partial x$ and the velocity-distance-viscosity ratio $u_2 y_2/\nu$---emerge as strongly correlated with hidden neurons regardless of network architecture (8, 16, 32, or 64 neurons). This architecture invariance suggests these features encode fundamental physics rather than artifacts of a particular model configuration.
+
+\paragraph{L1-Regularised Networks Are More Interpretable.} Networks trained with L1 regularisation on the first hidden layer develop sparser, more interpretable representations. The L1-PINN architecture with 32 neurons achieves $R^2 = 0.948$ for wall shear stress while maintaining clear neuron-feature alignment, demonstrating that interpretability need not come at the cost of accuracy.
+
+\paragraph{Neuron Replacement Validates Physics Understanding.} Replacing trained neurons with their most-correlated physics features and retraining only the output layer recovers 85--90\% of original model performance. This remarkable result confirms that the learned representations are genuinely physics-aligned rather than spuriously correlated.
+
+\subsection{Physics-Constrained Learning (Method C)}
+
+The PINN experiments in Chapter~\ref{chap:pinn} explored the trade-offs between data fitting and physics consistency:
+
+\paragraph{Local Stencil PINNs Are Computationally Tractable.} By computing physics residuals from finite differences on the local 3$\times$5 stencil rather than through automatic differentiation, the PINN approach becomes computationally feasible for wall function applications. The physics loss adds minimal overhead to training.
+
+\paragraph{Pure Data Fitting Achieves Highest Accuracy.} The MSE-only model (no physics loss) achieves $R^2 = 0.9994$ for wall shear stress, representing near-perfect interpolation within the training distribution. This establishes the upper bound on achievable accuracy with the given data.
+
+\paragraph{Physics Constraints Trade Accuracy for Consistency.} Adding physics loss terms reduces fitting accuracy slightly ($R^2 = 0.9917$ at $\lambda = 0.1$) but improves physical consistency of predictions. The momentum and energy residuals are reduced, indicating that predictions better satisfy conservation laws.
+
+\paragraph{Optimal Physics Weight Depends on Application.} The trade-off between accuracy and physics consistency is controlled by the physics loss weight $\lambda$:
+\begin{itemize}
+    \item $\lambda = 0$: Maximum accuracy, no physics guarantee
+    \item $\lambda = 0.01$--0.1: Good balance for most applications
+    \item $\lambda > 0.5$: Physics dominates, accuracy degrades
+\end{itemize}
+
+For wall function applications where generalisation to unseen conditions is important, moderate physics weighting ($\lambda \approx 0.1$) provides the best compromise.
+
+\subsection{Separation Detection}
+
+The classification experiments in Chapter~\ref{chap:separation} demonstrated:
+
+\paragraph{Separation Is Detectable from Local Data.} Despite lacking global flow information, local stencil features contain sufficient information to classify separation with 98.8\% accuracy. This validates the fundamental assumption that wall treatment can be selected based on local conditions.
+
+\paragraph{Thermal Features Are Surprisingly Important.} Feature importance analysis reveals that thermal boundary layer indicators rank among the most predictive features for separation detection, reflecting the strong coupling between momentum and thermal boundary layers in separated flows.
+
+\paragraph{Ensemble Methods Outperform Neural Networks.} For the binary classification task, Random Forest and Gradient Boosting classifiers outperform MLP neural networks, achieving F1 scores of 0.975 versus 0.874. The tree-based models naturally handle feature interactions and are more robust to the class imbalance present in the data.
+
+\paragraph{Generalisation Remains Challenging.} Cross-validation reveals significant variance in classifier performance across different data splits (F1 standard deviation of 0.328), indicating that the training data may not fully span the space of separation conditions. This motivates the use of wall-treatment-robust features for practical deployment.
+
+\section{Synthesis: Combining the Three Methods}
+
+A key insight from this thesis is that the three physics-informed approaches are complementary rather than competing. The optimal wall function combines elements of all three:
+
+\begin{enumerate}
+    \item \textbf{Input layer}: Physics-encoded features (Method A) transform raw data into a representation where the learning problem is simplified.
+
+    \item \textbf{Hidden layers}: L1 regularisation encourages physics-aligned neuron representations (Method B), improving interpretability and potentially generalisation.
+
+    \item \textbf{Loss function}: Moderate physics constraints (Method C) regularise against overfitting and improve physical consistency of predictions.
+\end{enumerate}
+
+Table~\ref{tab:method_comparison} summarises the characteristics of each approach.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparison of physics-informed approaches}
+\label{tab:method_comparison}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Characteristic} & \textbf{Method A} & \textbf{Method B} & \textbf{Method C} \\
+\hline
+Primary mechanism & Input transformation & Hidden representation & Loss regularisation \\
+Implementation complexity & Low & Medium & High \\
+Computational overhead & Minimal & Minimal & Moderate \\
+Interpretability benefit & High & High & Low \\
+Accuracy improvement & Significant & Modest & Slight decrease \\
+Generalisation benefit & Significant & Moderate & Moderate \\
+\hline
+\end{tabular}
+\end{table}
+
+The practical recommendation emerging from this work is to always use physics-encoded inputs (Method A), optionally add L1 regularisation for interpretability (Method B), and consider physics loss terms when generalisation to out-of-distribution conditions is critical (Method C).
+
+\section{Limitations}
+
+While this thesis makes significant contributions to physics-informed wall modelling, several limitations should be acknowledged.
+
+\subsection{Training Data Constraints}
+
+\paragraph{2D Geometry Focus.} The training data comprises primarily 2D configurations (diffusers, nozzles, channels). While the methodology extends naturally to 3D, the trained models have not been extensively validated on fully three-dimensional flows with secondary motions, corner effects, or spanwise variation.
+
+\paragraph{Reynolds Number Range.} The training data spans $Re = 6,000$--24,000 based on channel half-height. Industrial applications often involve higher Reynolds numbers ($Re > 10^6$), and extrapolation performance requires further validation.
+
+\paragraph{Incompressible Flow Assumption.} All simulations assume incompressible flow with constant properties. Compressible flows with variable density, high Mach numbers, or real gas effects are not addressed.
+
+\paragraph{Steady-State Training.} The training data comes from steady RANS simulations. Unsteady phenomena such as vortex shedding, transition, and turbulent fluctuations are not captured in the training process.
+
+\subsection{Model Architecture Limitations}
+
+\paragraph{Fixed Stencil Size.} The 3$\times$5 stencil provides a fixed receptive field that may be insufficient for flows with large-scale separation or strong non-local effects. Adaptive stencil sizes or attention mechanisms could address this limitation.
+
+\paragraph{Single Output Point.} The model predicts wall quantities at the stencil centre only. Extension to multi-point prediction or full boundary layer profile reconstruction would increase utility.
+
+\paragraph{No Uncertainty Quantification.} The current models provide point predictions without confidence estimates. Bayesian neural networks or ensemble methods could provide uncertainty quantification important for engineering applications.
+
+\subsection{Validation Limitations}
+
+\paragraph{No Experimental Validation.} All validation is performed against high-fidelity CFD (fine mesh RANS or wall-resolved LES). Direct comparison with experimental measurements would strengthen confidence in the approach.
+
+\paragraph{Limited Out-of-Distribution Testing.} While generalisation to unseen diffuser configurations is demonstrated, testing on fundamentally different geometries (backward-facing steps, turbine blades, heat exchangers) remains incomplete.
+
+\section{Future Work}
+
+The limitations identified above suggest several directions for future research.
+
+\subsection{Extension to Three-Dimensional Flows}
+
+The immediate priority is extending the methodology to fully three-dimensional flows:
+
+\begin{itemize}
+    \item \textbf{3D stencil extraction}: Extend the 3$\times$5 stencil to 3$\times$5$\times$3 or similar 3D configurations capturing spanwise variation.
+
+    \item \textbf{Additional physics features}: Include spanwise velocity gradients, secondary flow indicators, and 3D strain/rotation tensors in the feature library.
+
+    \item \textbf{Turbomachinery applications}: Validate on rotating machinery with Coriolis and centrifugal effects, blade passage flows, and tip clearance regions.
+\end{itemize}
+
+\subsection{Higher Reynolds Number Flows}
+
+Industrial CFD typically operates at much higher Reynolds numbers than the training data:
+
+\begin{itemize}
+    \item \textbf{Scale-invariant features}: Verify that the non-dimensional feature formulation provides adequate Reynolds number invariance at $Re > 10^6$.
+
+    \item \textbf{Transfer learning}: Develop fine-tuning strategies to adapt models trained at moderate Reynolds numbers to high-Reynolds industrial applications.
+
+    \item \textbf{Log-law blending}: Investigate hybrid approaches that blend ML predictions with analytical log-law behaviour in the overlap region.
+\end{itemize}
+
+\subsection{Unsteady and Transitional Flows}
+
+Extending to time-dependent phenomena:
+
+\begin{itemize}
+    \item \textbf{Temporal stencils}: Include time history in the input features, enabling prediction of unsteady wall quantities.
+
+    \item \textbf{Transition modelling}: Develop classifiers to detect laminar-turbulent transition onset, enabling appropriate wall treatment selection.
+
+    \item \textbf{LES integration}: Couple ML wall functions with large eddy simulation, requiring models that respond appropriately to resolved turbulent fluctuations.
+\end{itemize}
+
+\subsection{Uncertainty Quantification}
+
+Providing confidence estimates alongside predictions:
+
+\begin{itemize}
+    \item \textbf{Bayesian neural networks}: Replace point-estimate networks with probabilistic models that output predictive distributions.
+
+    \item \textbf{Deep ensembles}: Train multiple models and use ensemble disagreement as an uncertainty measure.
+
+    \item \textbf{Out-of-distribution detection}: Develop methods to flag inputs that lie outside the training distribution, triggering fallback to traditional wall functions.
+\end{itemize}
+
+\subsection{Compressible and Reacting Flows}
+
+Extending the framework to more complex physics:
+
+\begin{itemize}
+    \item \textbf{Compressibility effects}: Include Mach number, density ratio, and compressibility corrections in the feature library.
+
+    \item \textbf{Variable properties}: Account for temperature-dependent viscosity, thermal conductivity, and specific heat.
+
+    \item \textbf{Combustion applications}: Extend to reacting flows with species transport and heat release at walls.
+\end{itemize}
+
+\subsection{Improved Neural Network Architectures}
+
+Exploring more sophisticated model architectures:
+
+\begin{itemize}
+    \item \textbf{Graph neural networks}: Represent the stencil as a graph, enabling flexible connectivity and adaptive receptive fields.
+
+    \item \textbf{Attention mechanisms}: Allow the model to focus on the most relevant stencil points for each prediction.
+
+    \item \textbf{Physics-informed neural operators}: Learn solution operators that map boundary conditions to wall quantities, potentially enabling faster-than-real-time prediction.
+\end{itemize}
+
+\subsection{Experimental Validation}
+
+Strengthening confidence through experimental comparison:
+
+\begin{itemize}
+    \item \textbf{Canonical flows}: Validate against well-documented experimental data for flat plate boundary layers, pipe flow, and channel flow.
+
+    \item \textbf{Complex geometries}: Compare with experimental measurements in diffusers, backward-facing steps, and separated flows.
+
+    \item \textbf{Heat transfer}: Validate thermal predictions against measured Nusselt numbers and wall temperature distributions.
+\end{itemize}
+
+\section{Broader Impact and Applications}
+
+The physics-informed wall function framework developed in this thesis has potential applications across multiple engineering domains.
+
+\subsection{Aerospace Applications}
+
+Aircraft design relies heavily on CFD predictions of skin friction and heat transfer:
+
+\begin{itemize}
+    \item \textbf{Wing design}: Accurate prediction of transition and separation on airfoils affects drag estimation and stall prediction.
+    \item \textbf{Hypersonic vehicles}: Thermal protection system design requires accurate heat flux prediction in high-enthalpy flows.
+    \item \textbf{Engine nacelles}: Complex internal flows with separation and heat transfer benefit from improved wall modelling.
+\end{itemize}
+
+\subsection{Turbomachinery}
+
+Gas turbines present some of the most challenging wall-bounded flows:
+
+\begin{itemize}
+    \item \textbf{Blade cooling}: Film cooling effectiveness depends critically on near-wall heat transfer prediction.
+    \item \textbf{Tip clearance}: Secondary flows and separation in tip gaps affect efficiency and durability.
+    \item \textbf{Transition prediction}: Laminar-turbulent transition on blades significantly impacts losses.
+\end{itemize}
+
+\subsection{Automotive Applications}
+
+Vehicle aerodynamics and thermal management:
+
+\begin{itemize}
+    \item \textbf{External aerodynamics}: Separation prediction affects drag and stability estimates.
+    \item \textbf{Underhood thermal management}: Complex internal flows with heat transfer from engine components.
+    \item \textbf{HVAC systems}: Cabin air distribution requires accurate prediction of wall heat transfer.
+\end{itemize}
+
+\subsection{Nuclear and Power Generation}
+
+Safety-critical applications with stringent accuracy requirements:
+
+\begin{itemize}
+    \item \textbf{Reactor cooling}: Accurate heat transfer prediction is essential for safety analysis.
+    \item \textbf{Heat exchangers}: Compact heat exchanger design relies on accurate thermal predictions.
+    \item \textbf{Steam generators}: Two-phase flows near walls present additional modelling challenges.
+\end{itemize}
+
+\section{Concluding Remarks}
+
+This thesis has demonstrated that physics-informed machine learning provides a powerful framework for improving wall function predictions in computational fluid dynamics. By systematically incorporating physics knowledge at multiple levels---through input features, hidden layer representations, and loss function constraints---the developed models achieve accuracy approaching wall-resolved simulations while maintaining the computational efficiency required for industrial applications.
+
+The key insight underlying this work is that physics knowledge and data-driven learning are complementary rather than competing approaches. Physics provides the structure, constraints, and interpretability that pure machine learning lacks; machine learning provides the flexibility, adaptability, and pattern recognition capabilities that analytical models cannot match. The fusion of these paradigms, exemplified by the physics-informed neural network approach, represents a promising direction for computational mechanics more broadly.
+
+The practical impact of this research lies in enabling more accurate CFD predictions on the coarse meshes used in industrial practice. By replacing empirical wall functions with learned models that capture the complex physics of separation, adverse pressure gradients, and heat transfer, engineers can obtain more reliable predictions without the prohibitive cost of wall-resolved simulations. This capability is particularly valuable in the design optimisation loop, where many configurations must be evaluated quickly yet accurately.
+
+Looking forward, the framework established in this thesis provides a foundation for continued development. Extension to three-dimensional flows, higher Reynolds numbers, and unsteady phenomena will expand the applicability. Integration of uncertainty quantification will enable appropriate trust calibration. And experimental validation will build confidence for deployment in safety-critical applications.
+
+The ultimate vision is a wall modelling capability that adapts automatically to local flow conditions, selecting the appropriate treatment---whether traditional, machine-learned, or hybrid---based on detected flow regime and required accuracy. The separation classifier developed in Chapter~\ref{chap:separation} represents a first step toward this adaptive wall modelling paradigm. As machine learning methods continue to mature and computational resources expand, physics-informed approaches will play an increasingly important role in making high-fidelity CFD accessible for everyday engineering practice.
+
+\end{document}
