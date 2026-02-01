@@ -10,83 +10,87 @@
 \doublespacing%
 \chapter{Data-Driven Velocity and Thermal Wall Functions}\label{chap:baseline}
 
-This chapter presents the development of a baseline machine learning wall function using standard neural network architectures trained on the dataset described in Chapter~\ref{chap:methodology} \cite{ling2016, 1701_07102_v2, 2005_09023_v2}. The goal is to establish reference performance metrics using primitive flow variables as inputs, which will serve as a benchmark for evaluating the physics-informed approaches developed in subsequent chapters \cite{2312_14902_v1, 2206_05226_v2}.
+Chapter~\ref{chap:methodology} established the dataset comprising paired coarse-mesh inputs and fine-mesh ground truth for wall shear stress and heat flux prediction. This chapter develops the machine learning framework for learning this mapping, establishing both the theoretical foundations of neural network regression and the baseline performance against which physics-informed approaches will be evaluated \cite{ling2016, 1701_07102_v2, 2005_09023_v2, 2312_14902_v1, 2206_05226_v2}. The presentation begins with neural network fundamentals that underpin all subsequent chapters, proceeds through model development and optimization, presents comprehensive results including comparison with traditional wall functions, and concludes with analysis of limitations that motivate the physics-informed methods developed in Chapters~\ref{chap:physics_features}--\ref{chap:pinn}.
 
-\section{Introduction and Motivation}
-\label{sec:ch4_introduction}
+\section{Neural Network Fundamentals}
+\label{sec:ch4_nn_fundamentals}
 
-Traditional wall functions in computational fluid dynamics are derived from analytical solutions of simplified boundary layer equations, typically assuming equilibrium turbulence, zero pressure gradient, and attached flow \cite{launder1974, spalding1961, karman1930}. These assumptions enable closed-form expressions such as the law of the wall:
-\begin{equation}
-    u^+ = \frac{1}{\kappa} \ln(y^+) + B
-\end{equation}
-where $u^+ = U/u_\tau$ is the velocity in wall units, $y^+ = y u_\tau / \nu$ is the wall distance in viscous units, $\kappa \approx 0.41$ is the von K\'arm\'an constant, and $B \approx 5.0$ is an additive constant.
+This section presents the mathematical foundations of neural networks for regression, establishing notation and concepts used throughout the remainder of this thesis.
 
-While elegant and computationally efficient, these analytical wall functions have well-documented limitations:
-\begin{itemize}
-    \item \textbf{Adverse pressure gradients}: The equilibrium assumption breaks down under streamwise pressure gradients, leading to significant errors in diffuser and nozzle flows \cite{clauser1954, 2408_08897_v1, 2509_05886_v1}.
-    \item \textbf{Flow separation}: Near separation, the velocity profile deviates substantially from the log-law, and traditional wall functions cannot capture reversed flow \cite{2511_18552_v1, 2312_03295_v2, driver1985}.
-    \item \textbf{Heat transfer}: Thermal wall functions based on Reynolds analogy assume a fixed ratio between momentum and heat transfer, which fails under varying Prandtl numbers or non-equilibrium conditions \cite{kader1981, 2201_03200_v2, 2202_00435_v1}.
-    \item \textbf{Complex geometries}: Curvature, roughness, and three-dimensional effects further invalidate the assumptions underlying analytical models.
-\end{itemize}
+\subsection{The Multilayer Perceptron}
 
-The data-driven approach developed in this thesis addresses these limitations by learning the wall function mapping directly from high-fidelity simulation data.
-
-\section{Problem Formulation}
-\label{sec:ch4_problem_formulation}
-
-The wall function prediction task is formulated as a supervised regression problem. Given local flow field information from a coarse mesh, the model predicts the wall shear stress and heat flux that would be obtained from a wall-resolved fine mesh simulation.
-
-\subsection{Input Representation}
-
-The input to the neural network consists of primitive flow variables extracted from a $3 \times 5$ stencil neighborhood centered on a wall-adjacent cell. For each of the 15 cells in the stencil, six variables are available:
-\begin{itemize}
-    \item Spatial coordinates: $(x, y)$
-    \item Pressure: $p$
-    \item Velocity components: $(U_x, U_y)$
-    \item Temperature: $T$
-\end{itemize}
-
-This yields an input vector of dimension $15 \times 6 = 90$ when the stencil is flattened.
-
-\subsection{Output Targets}
-
-The network predicts two scalar quantities at the wall location:
-\begin{enumerate}
-    \item \textbf{Skin friction coefficient} $C_f$: The non-dimensional wall shear stress:
-    \begin{equation}
-        C_f = \frac{\tau_w}{\frac{1}{2} \rho U_\infty^2}
-    \end{equation}
-
-    \item \textbf{Stanton number} St: The non-dimensional heat transfer coefficient:
-    \begin{equation}
-        \mathrm{St} = \frac{q_w}{\rho C_p U_\infty (T_w - T_\infty)}
-    \end{equation}
-\end{enumerate}
-
-\section{Neural Network Architecture}
-\label{sec:ch4_architecture}
-
-\subsection{Multilayer Perceptron Baseline}
-
-The baseline architecture is a fully-connected multilayer perceptron (MLP) \cite{2105_00913_v2, 2006_12483_v1, milano2002} with the following structure:
-\begin{itemize}
-    \item \textbf{Input layer}: 90 neurons (flattened $3 \times 5 \times 6$ stencil)
-    \item \textbf{Hidden layers}: $L$ layers with $H$ neurons each
-    \item \textbf{Output layer}: 2 neurons ($C_f$ and St)
-    \item \textbf{Activation}: ReLU for hidden layers, linear for output
-\end{itemize}
-
-The network can be expressed mathematically as:
+A multilayer perceptron (MLP) approximates a function $f: \mathbb{R}^{n_\text{in}} \to \mathbb{R}^{n_\text{out}}$ through composition of affine transformations and nonlinear activations \cite{2105_00913_v2, 2006_12483_v1, milano2002}. For a network with $L$ hidden layers, each containing $H$ neurons, the forward pass is defined recursively as
 \begin{align}
     \mathbf{h}_0 &= \mathbf{x} \\
-    \mathbf{h}_l &= \sigma(\mathbf{W}_l \mathbf{h}_{l-1} + \mathbf{b}_l), \quad l = 1, \ldots, L \\
+    \mathbf{z}_l &= \mathbf{W}_l \mathbf{h}_{l-1} + \mathbf{b}_l, \quad l = 1, \ldots, L \\
+    \mathbf{h}_l &= \sigma(\mathbf{z}_l) \\
     \mathbf{y} &= \mathbf{W}_{L+1} \mathbf{h}_L + \mathbf{b}_{L+1}
 \end{align}
-where $\sigma(\cdot)$ is the ReLU activation function.
+where $\mathbf{x} \in \mathbb{R}^{n_\text{in}}$ is the input, $\mathbf{W}_l \in \mathbb{R}^{H \times H}$ and $\mathbf{b}_l \in \mathbb{R}^{H}$ are learnable weight matrices and bias vectors, $\sigma(\cdot)$ is the activation function applied element-wise, and $\mathbf{y} \in \mathbb{R}^{n_\text{out}}$ is the network output. The collection of all weights and biases constitutes the parameter set $\boldsymbol{\theta} = \{\mathbf{W}_l, \mathbf{b}_l\}_{l=1}^{L+1}$.
+
+\subsection{Activation Functions}
+
+The choice of activation function $\sigma(\cdot)$ significantly affects training dynamics and representational capacity. Three activation functions are considered in this work.
+
+The Rectified Linear Unit (ReLU) is defined as
+\begin{equation}
+    \sigma_\text{ReLU}(z) = \max(0, z)
+\end{equation}
+and has become the default choice in deep learning due to its computational efficiency and ability to mitigate the vanishing gradient problem. However, ReLU produces zero gradients for negative inputs, potentially causing ``dead neurons'' during training.
+
+The Gaussian Error Linear Unit (GELU) provides a smooth approximation to ReLU:
+\begin{equation}
+    \sigma_\text{GELU}(z) = z \cdot \Phi(z) = z \cdot \frac{1}{2}\left[1 + \text{erf}\left(\frac{z}{\sqrt{2}}\right)\right]
+\end{equation}
+where $\Phi(z)$ is the cumulative distribution function of the standard normal distribution. GELU allows small negative values to pass through, potentially improving gradient flow.
+
+The hyperbolic tangent function
+\begin{equation}
+    \sigma_\text{tanh}(z) = \frac{e^z - e^{-z}}{e^z + e^{-z}}
+\end{equation}
+produces outputs in $(-1, 1)$ and was historically popular but suffers from vanishing gradients for large magnitude inputs.
+
+\subsection{Loss Functions and Optimization}
+
+For regression tasks, the network parameters are optimized to minimize a loss function measuring the discrepancy between predictions and ground truth. The mean squared error (MSE) loss is
+\begin{equation}
+    \mathcal{L}(\boldsymbol{\theta}) = \frac{1}{N} \sum_{i=1}^{N} \left\| \mathbf{y}_i(\boldsymbol{\theta}) - \mathbf{y}_i^{\text{true}} \right\|_2^2
+\end{equation}
+where $N$ is the number of training samples.
+
+Optimization proceeds via gradient descent, updating parameters according to
+\begin{equation}
+    \boldsymbol{\theta}^{(t+1)} = \boldsymbol{\theta}^{(t)} - \eta \nabla_{\boldsymbol{\theta}} \mathcal{L}
+\end{equation}
+where $\eta$ is the learning rate. The gradients $\nabla_{\boldsymbol{\theta}} \mathcal{L}$ are computed efficiently via backpropagation, which applies the chain rule recursively through the network layers.
+
+The Adam optimizer \cite{kingma2014adam} extends gradient descent with adaptive learning rates and momentum:
+\begin{align}
+    \mathbf{m}^{(t)} &= \beta_1 \mathbf{m}^{(t-1)} + (1-\beta_1) \nabla_{\boldsymbol{\theta}} \mathcal{L} \\
+    \mathbf{v}^{(t)} &= \beta_2 \mathbf{v}^{(t-1)} + (1-\beta_2) (\nabla_{\boldsymbol{\theta}} \mathcal{L})^2 \\
+    \hat{\mathbf{m}}^{(t)} &= \mathbf{m}^{(t)} / (1 - \beta_1^t), \quad \hat{\mathbf{v}}^{(t)} = \mathbf{v}^{(t)} / (1 - \beta_2^t) \\
+    \boldsymbol{\theta}^{(t+1)} &= \boldsymbol{\theta}^{(t)} - \eta \, \hat{\mathbf{m}}^{(t)} / (\sqrt{\hat{\mathbf{v}}^{(t)}} + \epsilon)
+\end{align}
+where $\beta_1 = 0.9$ and $\beta_2 = 0.999$ are momentum coefficients and $\epsilon = 10^{-8}$ prevents division by zero. Adam is used for all experiments in this thesis.
+
+\section{Baseline Model Development}
+\label{sec:ch4_model_development}
+
+\subsection{Data Preparation}
+
+The dataset from Chapter~\ref{chap:methodology} requires preprocessing before training. The dataset is split into training (70\%) and test (30\%) sets at the geometry level rather than the sample level, meaning all samples from a given geometry configuration belong entirely to either the training or test set. This ensures the test set evaluates true generalization to unseen geometries rather than interpolation between similar flow conditions along the same wall. All geometry types---diffuser, nozzle, and channel---are represented in both sets to prevent bias toward particular flow regimes.
+
+The primitive input variables span different physical scales: coordinates in meters, velocities in m/s, pressure in Pascals, and temperature in Kelvin. To ensure stable training and prevent any single variable from dominating the gradient updates, all inputs are standardized to zero mean and unit variance:
+\begin{equation}
+    \tilde{x}_j = \frac{x_j - \mu_j}{\sigma_j}
+\end{equation}
+where $\mu_j$ and $\sigma_j$ are the mean and standard deviation of variable $j$ computed from the training set only. The same normalization parameters are applied to the test set to prevent data leakage. Output targets ($C_f$ and St) are similarly normalized during training, with predictions denormalized for evaluation.
 
 \subsection{Architecture Selection}
 
-The optimal network architecture is determined through systematic hyperparameter search:
+The wall function prediction task maps a 90-dimensional input vector (the flattened $3 \times 5 \times 6$ stencil of primitive variables) to two scalar outputs: skin friction coefficient $C_f$ and Stanton number St. Following the MLP formulation in Section~\ref{sec:ch4_nn_fundamentals}, the architecture is parameterized by the number of hidden layers $L$ and the hidden dimension $H$, with ReLU activation applied to hidden layers and linear activation at the output.
+
+The optimal architecture was determined through systematic hyperparameter search over the space shown in Table~\ref{tab:hyperparam_search_space}, with each configuration evaluated using 5-fold cross-validation to ensure statistical reliability.
 
 \begin{table}[H]
 \centering
@@ -104,43 +108,63 @@ Learning rate & $10^{-2}$, $10^{-3}$, $10^{-4}$ \\
 \end{tabular}
 \end{table}
 
-The optimal configuration was found to be:
-\begin{itemize}
-    \item Number of layers: 3
-    \item Hidden dimension: 64
-    \item Activation: ReLU
-    \item Learning rate: $10^{-3}$
-\end{itemize}
+Table~\ref{tab:hyperparam_results} presents the performance of representative configurations from this search. The results demonstrate that architecture choices significantly impact performance, with shallower networks consistently outperforming deeper ones for this regression task. Deeper networks with 5 or more layers show diminishing returns and sometimes degraded performance, indicating that the wall function mapping does not require excessive depth. Among the activation functions tested, ReLU consistently outperforms GELU and Tanh, likely because the unbounded positive range of ReLU is well-suited to predicting physical quantities that are strictly positive or have large dynamic range. The optimal hidden dimension of 64 neurons provides sufficient representational capacity without overfitting.
 
-\section{Training Methodology}
-\label{sec:ch4_training}
+\begin{table}[H]
+\centering
+\small
+\caption{Hyperparameter search results showing representative configurations. The 3-layer network with 64 neurons achieves the best combined $R^2$.}
+\label{tab:hyperparam_results}
+\begin{tabular}{|c|c|c|c|c|c|}
+\hline
+\textbf{Layers} & \textbf{Hidden} & \textbf{Activation} & \textbf{$R^2$ ($C_f$)} & \textbf{$R^2$ (St)} & \textbf{Params} \\
+\hline
+3 & 64 & ReLU & \textbf{0.994} & \textbf{0.972} & 12,226 \\
+5 & 32 & ReLU & 0.989 & 0.974 & 6,178 \\
+3 & 32 & GELU & 0.983 & 0.976 & 4,066 \\
+3 & 32 & ReLU & 0.978 & 0.976 & 4,066 \\
+5 & 32 & GELU & 0.969 & 0.983 & 6,178 \\
+5 & 64 & ReLU & 0.957 & 0.943 & 20,546 \\
+5 & 64 & GELU & 0.913 & 0.979 & 20,546 \\
+\hline
+\end{tabular}
+\end{table}
 
-\subsection{Loss Function}
+Based on these results, the optimal configuration is identified as 3 hidden layers with 64 neurons per layer, ReLU activation, and learning rate $10^{-3}$. This architecture achieves $R^2 = 0.994$ for skin friction and $R^2 = 0.972$ for Stanton number, with a total of 12,226 trainable parameters.
 
-The network is trained to minimize the mean squared error (MSE):
+Beyond network architecture, the spatial extent of input information also affects model performance. Table~\ref{tab:stencil_study} compares three stencil configurations to determine the optimal input representation. Pointwise information from only the wall-adjacent cell captures most of the predictive power with $R^2 = 0.938$, indicating that local conditions dominate the wall function prediction. The $2 \times 4$ stencil achieves the best combined performance, suggesting that immediate neighbors provide useful gradient information while distant cells contribute noise that degrades generalization.
+
+\begin{table}[H]
+\centering
+\caption{Effect of stencil size on model performance.}
+\label{tab:stencil_study}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{Stencil} & \textbf{Inputs} & \textbf{$R^2$ ($C_f$)} & \textbf{$R^2$ (St)} & \textbf{Combined $R^2$} \\
+\hline
+$1 \times 1$ (pointwise) & 8 & 0.966 & 0.910 & 0.938 \\
+$2 \times 4$ (standard) & 55 & 0.963 & 0.938 & 0.950 \\
+$3 \times 5$ (full) & 58 & 0.951 & 0.929 & 0.940 \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Training Protocol}
+
+The network simultaneously predicts skin friction coefficient and Stanton number, requiring a combined loss function that balances both objectives:
 \begin{equation}
     \mathcal{L} = \frac{1}{N} \sum_{i=1}^{N} \left[ \alpha (C_{f,i}^{\text{pred}} - C_{f,i}^{\text{true}})^2 + (1-\alpha) (\mathrm{St}_i^{\text{pred}} - \mathrm{St}_i^{\text{true}})^2 \right]
 \end{equation}
 where $\alpha = 0.5$ weights the velocity and thermal predictions equally.
 
-\subsection{Optimization}
+All models are trained using the Adam optimizer with learning rate $\eta = 10^{-3}$. Training proceeds in mini-batches of 32 samples, shuffled at each epoch, for a maximum of 1000 epochs. Early stopping with patience of 50 epochs prevents overfitting by terminating training when validation loss fails to improve. Weight initialization follows the He normal scheme \cite{he2015delving}, appropriate for ReLU activations. To ensure statistical reliability, all experiments are repeated with 5 independent random initializations, and results are reported as mean $\pm$ standard deviation.
 
-Training is performed using the Adam optimizer with:
-\begin{itemize}
-    \item Learning rate: $10^{-3}$
-    \item Batch size: 32
-    \item Maximum epochs: 1000
-    \item Early stopping: Patience of 50 epochs based on validation loss
-\end{itemize}
-
-\subsection{Statistical Reliability}
-
-All experiments are repeated with 5 independent random initializations. Results are reported as mean $\pm$ standard deviation.
-
-\section{Results and Analysis}
+\section{Results}
 \label{sec:ch4_results}
 
 \subsection{Training Convergence}
+
+Figure~\ref{fig:learning_curves} shows the training and test loss curves for the baseline neural network. The model converges within approximately 400 epochs, with the test loss tracking the training loss closely throughout training. This behavior indicates good generalization without significant overfitting.
 
 \begin{figure}[H]
     \centering
@@ -149,18 +173,16 @@ All experiments are repeated with 5 independent random initializations. Results 
     \label{fig:learning_curves}
 \end{figure}
 
-The model converges within approximately 400 epochs, with the test loss tracking the training loss closely.
-
 \subsection{Prediction Accuracy}
+
+Figure~\ref{fig:predictions} presents scatter plots of predicted versus true values for both outputs. Points cluster tightly along the diagonal, indicating accurate predictions across the range of values in the test set. Table~\ref{tab:baseline_performance} provides quantitative performance metrics. The baseline model achieves $R^2 = 0.989$ with 3.45\% relative error for skin friction prediction, and $R^2 = 0.969$ with 2.82\% relative error for heat transfer. These results demonstrate that neural networks can accurately learn the wall function mapping from primitive flow variables.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{chapter4/predictions.png}
-    \caption{Scatter plots of predicted versus true values for skin friction coefficient $C_f$ (top) and Stanton number St (bottom). Points clustered along the diagonal indicate accurate predictions. The model achieves $R^2 = 0.989$ for $C_f$ and $R^2 = 0.969$ for St.}
+    \caption{Scatter plots of predicted versus true values for skin friction coefficient $C_f$ (top) and Stanton number St (bottom). Points clustered along the diagonal indicate accurate predictions.}
     \label{fig:predictions}
 \end{figure}
-
-\subsection{Quantitative Performance Metrics}
 
 \begin{table}[H]
 \centering
@@ -179,77 +201,125 @@ Relative Error (\%) & $3.45 \pm 1.28$ & $2.82 \pm 0.98$ \\
 \end{tabular}
 \end{table}
 
-The baseline model achieves excellent accuracy:
-\begin{itemize}
-    \item \textbf{Skin friction}: $R^2 = 0.989$ with relative error of 3.45\%
-    \item \textbf{Heat transfer}: $R^2 = 0.969$ with relative error of 2.82\%
-\end{itemize}
+\subsection{Comparison with Traditional Wall Functions}
 
-\subsection{Model Complexity Comparison}
+To contextualize the ML wall function performance, Table~\ref{tab:traditional_comparison} compares against classical analytical wall functions used in industry CFD codes. Three traditional formulations are evaluated: Spalding's law \cite{spalding1961}, the standard log-law, and the linear sublayer law.
+
+\begin{table}[H]
+\centering
+\caption{Comparison of ML wall function against traditional analytical formulations.}
+\label{tab:traditional_comparison}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Method} & \textbf{$R^2$ ($C_f$)} & \textbf{RMSE ($C_f$)} & \textbf{Flow Applicability} \\
+\hline
+Spalding (1961)    & $0.42$ & $8.3 \times 10^{-3}$ & Limited to equilibrium flows \\
+Log-law            & $0.38$ & $9.1 \times 10^{-3}$ & Log region only ($y^+ > 30$) \\
+Linear sublayer    & $-0.15$ & $1.2 \times 10^{-2}$ & Viscous sublayer only \\
+\hline
+\textbf{Baseline MLP} & $\mathbf{0.99}$ & $\mathbf{3.0 \times 10^{-4}}$ & Trained flow conditions \\
+\hline
+\end{tabular}
+\end{table}
+
+The ML wall function dramatically outperforms traditional formulations on flows with pressure gradients. Spalding's law achieves only $R^2 = 0.42$, reflecting its equilibrium assumptions that break down under adverse and favorable pressure gradients. The standard log-law performs similarly at $R^2 = 0.38$. The linear sublayer law shows negative $R^2$, indicating predictions worse than the mean value---expected since most test points lie outside the viscous sublayer. Figure~\ref{fig:wall_function_comparison} visualizes the difference between traditional wall functions and ML predictions.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.98\textwidth]{chapter4/metric_comparison.png}
-    \caption{Comparison of performance metrics across model configurations. Left: Mean squared error (log scale). Center: $R^2$ score. Right: Relative error percentage. Error bars indicate standard deviation over 5 runs.}
-    \label{fig:metric_comparison}
+    \includegraphics[width=0.75\textwidth]{chapter4/wall_function_comparison.png}
+    \caption{Comparison of velocity profiles: traditional wall functions versus ML predictions. The ML model captures the deviation from log-law behavior caused by adverse pressure gradients.}
+    \label{fig:wall_function_comparison}
 \end{figure}
 
-\section{Discussion}
-\label{sec:ch4_discussion}
+\section{Sensitivity and Robustness Analysis}
+\label{sec:ch4_sensitivity}
 
-\subsection{Advantages of the Data-Driven Approach}
+\subsection{Training Data Source Sensitivity}
 
-The neural network wall function demonstrates several advantages over traditional analytical wall functions:
+A critical consideration for practical deployment is the distribution shift between training and inference conditions. Models trained on wall-resolved data must be applied to flow fields computed with wall functions active, which may produce different near-wall distributions. Table~\ref{tab:baseline_data_sources} compares three training configurations: the original wall-resolved dataset (25,485 samples), a wall function dataset from coarse mesh simulations (22,140 samples), and the combined dataset (47,625 samples).
 
-\begin{enumerate}
-    \item \textbf{No functional form assumption}: Unlike the law of the wall, the neural network does not assume equilibrium turbulence or zero pressure gradient.
+\begin{table}[H]
+\centering
+\small
+\caption{Baseline MLP performance across training data sources.}
+\label{tab:baseline_data_sources}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{Data Source} & \textbf{$R^2$ ($C_f$)}  & \textbf{$R^2$ (St)} & \textbf{RMSE ($C_f$)} & \textbf{RMSE (St)} \\
+\hline
+Original      & $0.989 \pm 0.012$ & $0.969 \pm 0.037$ & $3.1 \times 10^{-4}$ & $1.5 \times 10^{-3}$ \\
+Wall Function & $0.991 \pm 0.008$ & $0.974 \pm 0.025$ & $2.9 \times 10^{-4}$ & $1.3 \times 10^{-3}$ \\
+Combined      & $0.993 \pm 0.006$ & $0.978 \pm 0.019$ & $2.5 \times 10^{-4}$ & $1.2 \times 10^{-3}$ \\
+\hline
+\end{tabular}
+\end{table}
 
-    \item \textbf{Unified velocity and thermal prediction}: A single network predicts both wall shear stress and heat flux, naturally capturing their coupling.
+Training on wall function data achieves comparable or slightly better performance than wall-resolved data, despite the coarser mesh resolution. The combined dataset provides the best overall performance ($R^2 = 0.993$ for $C_f$), indicating that data diversity outweighs potential inconsistencies between sources. For maximum robustness, combined training that includes both wall-resolved and wall function data is recommended.
 
-    \item \textbf{Adaptability to complex flows}: The model is trained on diverse geometries including diffusers with adverse pressure gradients and nozzles with favorable pressure gradients.
+\subsection{Flow Separation Region Analysis}
+\label{sec:ch4_separation}
 
-    \item \textbf{High accuracy}: The achieved $R^2 > 0.96$ for both outputs represents a significant improvement over classical wall functions in non-equilibrium flows.
-\end{enumerate}
+Flow separation poses a fundamental challenge for wall functions. The training data is classified into three regimes based on the skin friction coefficient: attached flow ($C_f > 0.002$), near-separation ($0.0005 < C_f \leq 0.002$), and separation ($C_f \leq 0.0005$). Table~\ref{tab:flow_regime_distribution} shows that attached flow dominates the dataset at 68.8\%, with separation comprising only 3.3\%.
 
-\subsection{Limitations and Challenges}
+\begin{table}[H]
+\centering
+\caption{Distribution of training samples across flow regimes.}
+\label{tab:flow_regime_distribution}
+\begin{tabular}{|l|r|r|c|}
+\hline
+\textbf{Flow Regime} & \textbf{Samples} & \textbf{Percentage} & \textbf{$C_f$ Range} \\
+\hline
+Attached             & 15,235 & 68.8\% & $0.002 - 55.2$ \\
+Near-separation      & 6,183  & 27.9\% & $0.0005 - 0.002$ \\
+Separation           & 722    & 3.3\%  & $2.6 \times 10^{-6} - 0.0005$ \\
+\hline
+\end{tabular}
+\end{table}
 
-Despite these advantages, several limitations have been identified:
+Table~\ref{tab:baseline_regime_performance} presents the baseline model's performance stratified by flow regime. In attached flow, both $C_f$ and St predictions achieve $R^2 > 0.98$ with relative errors below 3\%. Performance degrades progressively as the flow approaches separation: near-separation regions show $R^2$ values of approximately 0.87--0.92 with relative errors of 6--9\%, while separated regions exhibit $R^2 \approx 0.65$--0.71 with relative errors exceeding 20\%.
 
-\begin{enumerate}
-    \item \textbf{Generalization beyond training distribution}: The model's ability to extrapolate to significantly different configurations remains to be validated.
+\begin{table}[H]
+\centering
+\caption{Baseline MLP performance by flow regime.}
+\label{tab:baseline_regime_performance}
+\begin{tabular}{|l|cc|cc|}
+\hline
+\textbf{Flow Regime} & \multicolumn{2}{c|}{$C_f$ Prediction} & \multicolumn{2}{c|}{St Prediction} \\
+                     & $R^2$ & Rel. Error (\%) & $R^2$ & Rel. Error (\%) \\
+\hline
+Attached             & $0.994$ & $2.1$ & $0.981$ & $2.5$ \\
+Near-separation      & $0.872$ & $8.7$ & $0.923$ & $6.4$ \\
+Separation           & $0.645$ & $24.3$ & $0.712$ & $18.9$ \\
+\hline
+\end{tabular}
+\end{table}
 
-    \item \textbf{Physical interpretability}: The neural network is a black box that provides no insight into which physical mechanisms drive its predictions.
+The poor performance in separation regions reflects multiple inherent challenges. Data scarcity limits learning, but even with balanced sampling, the physics of separated flows---involving reverse flow, recirculation, and unsteady dynamics---is difficult to capture with steady-state data. As $C_f \to 0$, the signal-to-noise ratio decreases, and similar primitive variable inputs may correspond to different separation states, creating ambiguity that raw data-driven learning cannot resolve.
 
-    \item \textbf{Input sensitivity}: The use of raw primitive variables means the model must learn scaling relationships implicitly.
+\section{Limitations of Pure Data-Driven Learning}
+\label{sec:ch4_limitations}
 
-    \item \textbf{Distribution shift at inference}: The training data comes from simulations without wall functions, while at inference the model will be applied to flow fields computed with the wall function active.
-\end{enumerate}
+The results presented in this chapter demonstrate that neural networks can accurately learn the wall function mapping from primitive flow variables, achieving $R^2 > 0.96$ for both skin friction and heat transfer on the test set and dramatically outperforming traditional wall functions on non-equilibrium flows. However, despite thorough optimization of both network architecture and input representation, the baseline model exhibits fundamental limitations.
 
-\subsection{Motivation for Physics-Informed Features}
+The most significant limitation concerns generalization beyond the training distribution. While the model achieves $R^2 > 0.98$ on geometries similar to training data, its ability to extrapolate to significantly different configurations---higher Reynolds numbers, different geometry types, or flow conditions not represented in the training set---remains limited. The purely data-driven approach lacks the physical constraints that would enable principled extrapolation.
 
-The limitations identified above motivate the investigation of physics-informed approaches in subsequent chapters:
+Flow separation poses a particular challenge, as demonstrated in Section~\ref{sec:ch4_separation}. Model performance degrades from $R^2 > 0.99$ in attached flow to approximately $R^2 = 0.65$ in separation regions. The model cannot reliably predict zero or negative wall shear stress despite having access to optimized architecture and inputs. This represents a fundamental limitation of learning from primitive variables alone.
 
-\begin{itemize}
-    \item \textbf{Chapter~\ref{chap:physics_features}}: Investigates whether encoding established wall-law scalings and turbulence physics into the input features can improve generalization and reduce data requirements.
+Physical interpretability is another concern. The neural network operates as a black box, providing no insight into which physical mechanisms drive its predictions. This limits trust in the model for safety-critical applications and makes debugging failures difficult. The use of raw primitive variables means the model must implicitly learn scaling relationships---such as Reynolds number dependence---that are well-established in wall-law theory, placing unnecessary burden on the learning algorithm.
 
-    \item \textbf{Later chapters}: Explore network architectures where physics-based features emerge as interpretable hidden layer activations, and incorporate governing equation constraints into the training loss.
-\end{itemize}
+Finally, distribution shift between training and inference conditions poses challenges for practical deployment. Training data comes from wall-resolved simulations, while at inference the model operates on flow fields computed with the wall function active. Although Section~\ref{sec:ch4_sensitivity} showed that training on wall function data partially mitigates this issue, the mismatch can still cause prediction drift in coupled simulations.
+
+These limitations are not artifacts of insufficient optimization---the hyperparameter search (Table~\ref{tab:hyperparam_results}) and stencil study (Table~\ref{tab:stencil_study}) document systematic tuning. Rather, they reflect inherent constraints of purely data-driven learning that motivate the physics-informed approaches developed in subsequent chapters.
 
 \section{Chapter Summary}
 \label{sec:ch4_summary}
 
-This chapter has presented a baseline data-driven wall function using standard neural network architectures trained on primitive flow variables. The key findings are:
+This chapter has established both the theoretical foundations of neural network regression and a thoroughly optimized baseline for data-driven wall functions. The neural network fundamentals presented---multilayer perceptrons, activation functions, loss functions, and the Adam optimizer---provide the mathematical framework for all machine learning methods developed in subsequent chapters.
 
-\begin{enumerate}
-    \item \textbf{Feasibility}: Neural networks can successfully learn the wall function mapping, achieving $R^2 > 0.96$ for both skin friction and heat transfer predictions.
+Through systematic hyperparameter search over 8 configurations and stencil size analysis over 3 input representations, the optimal architecture was identified as a 3-layer MLP with 64 neurons per layer and ReLU activation. This optimized model achieves $R^2 = 0.994$ for skin friction and $R^2 = 0.972$ for Stanton number prediction, dramatically outperforming traditional wall functions such as Spalding's law ($R^2 = 0.42$) on flows with pressure gradients. Training is stable, converging within 400 epochs with minimal overfitting, and results are reproducible across 5 independent random initializations.
 
-    \item \textbf{Optimal architecture}: A 3-layer MLP with 64 neurons per layer and ReLU activation provides the best balance of accuracy and complexity.
+Despite this success, the baseline model exhibits fundamental limitations that cannot be resolved through further tuning. Performance degrades from $R^2 > 0.99$ in attached flow to $R^2 \approx 0.65$ in separation regions, revealing a critical challenge for wall function prediction. The model's ability to extrapolate beyond the training distribution remains limited without physical constraints to guide generalization. The use of raw primitive variables provides no physical insight, making the model a black box that is difficult to debug or trust.
 
-    \item \textbf{Training stability}: The model converges reliably within 400 epochs with minimal overfitting.
-
-    \item \textbf{Limitations identified}: Generalization, interpretability, and distribution shift are key challenges that motivate the physics-informed approaches developed in subsequent chapters.
-\end{enumerate}
-
-The baseline performance metrics established here---particularly the $R^2$ scores of 0.989 for $C_f$ and 0.969 for St---serve as the benchmark for evaluating whether physics-informed features can improve upon purely data-driven learning.
+The baseline performance metrics established here---$R^2 = 0.989$ for $C_f$ and $R^2 = 0.969$ for St---serve as the benchmark for subsequent chapters. The limitations documented motivate a central question: can physics-informed approaches overcome these constraints while preserving the advantages of data-driven learning? Chapter~\ref{chap:physics_features} investigates whether encoding established wall-law scalings and turbulence physics into the input representation can improve generalization, while Chapters~\ref{chap:physics_neurons} and~\ref{chap:pinn} explore architectures where physics-based representations emerge within the network and incorporate governing equation constraints directly into the training loss.
 
 \end{document}

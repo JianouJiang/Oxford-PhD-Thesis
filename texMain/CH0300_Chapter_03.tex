@@ -29,8 +29,8 @@ Figure~\ref{fig:data_pipeline} illustrates the complete data generation pipeline
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\textwidth]{chapter3/data_pipeline.png}
-    \caption{Data generation pipeline for the ML wall function training dataset. The process begins with geometry parameterization, proceeds through parallel fine and coarse mesh simulations, and concludes with feature extraction to create input-output pairs for supervised learning.}
+    \includegraphics[width=0.98\textwidth]{figures/fig_3_1_mesh_comparison.pdf}
+    \caption{Data generation methodology for ML wall function training. \textbf{Top row}: Schematic views of stencil extraction from coarse mesh (left, input) and wall gradient computation from fine mesh (right, target). \textbf{Middle row}: Full diffuser geometry meshes showing the coarse mesh ($y^+ \approx 30$) and fine mesh ($y^+ < 2$) with zoom regions indicated. \textbf{Bottom}: Data generation pipeline flowchart showing how geometry parameters flow through dual-mesh simulations to produce training pairs $(\mathbf{X}_{\text{stencil}}, \tau_w, q_w)$ for neural network training.}
     \label{fig:data_pipeline}
 \end{figure}
 
@@ -41,12 +41,12 @@ The key insight of this approach is that the fine mesh simulation provides the `
 
 The training dataset spans three geometry families designed to cover a comprehensive range of pressure gradient conditions. As discussed in the literature review (Chapter~\ref{chap:literature}), these geometries are motivated by classical benchmark cases for wall function validation, spanning from equilibrium channel flow to separated diffuser flows.
 
-Figure~\ref{fig:geometry_types} shows the three geometry families used for training data generation. All geometries feature an asymmetric configuration with one flat wall (top) where training data is collected, and one inclined wall (bottom) that creates the pressure gradient.
+Figure~\ref{fig:geometry_types} shows all geometry variations used for training data generation, illustrating how parameters are systematically varied to create diverse training conditions. All geometries feature an asymmetric configuration with one flat wall (top) where training data is collected, and one inclined wall (bottom) that creates the pressure gradient.
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\textwidth]{chapter3/geometry_types.png}
-    \caption{The three geometry families used for training data generation. (a) Asymmetric diffuser with adverse pressure gradient (APG). (b) Asymmetric nozzle with favorable pressure gradient (FPG). (c) Channel flow with zero pressure gradient (ZPG). Training data is collected from the flat top wall in all cases.}
+    \includegraphics[width=0.98\textwidth]{figures/fig_geometry_family.png}
+    \caption{Complete training geometry family showing 15 unique geometry shapes (10 diffusers, 1 channel, 4 nozzles). \textbf{Top}: Overview with all bottom wall profiles superimposed, showing how the flat top wall (training data source) remains constant while the bottom wall varies to create different pressure gradient conditions. \textbf{Bottom}: Grid of individual geometries sorted by expansion ratio. Diffusers (green/yellow) create adverse pressure gradients, channels (gray) provide zero pressure gradient baseline, and nozzles (blue) create favorable pressure gradients. Each geometry is simulated at two Reynolds numbers (12,000 and 18,000) with two mesh resolutions, yielding 60 total training simulations.}
     \label{fig:geometry_types}
 \end{figure}
 
@@ -303,7 +303,7 @@ Simulations are considered converged when all residuals fall below $10^{-6}$ and
 \section{Validation Against Benchmark Data}
 \label{sec:ch3_validation}
 
-The simulation methodology is validated against established benchmark data to ensure that the fine mesh simulations provide reliable ground truth for neural network training.
+Before using the simulation results as training data, it is essential to verify that our OpenFOAM simulations produce accurate predictions in regions where the underlying physics is well understood. This validation serves two critical purposes. First, it establishes confidence that the training data generated from our fine mesh simulations can be trusted as ground truth for neural network training---if the simulations do not match established benchmarks in attached flow regions where RANS is expected to perform well, the resulting training data would teach the network incorrect relationships. Second, by using OpenFOAM consistently throughout this work, from training data generation to eventual deployment of the trained ML wall functions in Chapter~\ref{chap:physics_constrained}, we ensure that any performance comparisons between traditional wall functions and our learned models are conducted on a level playing field, with identical numerical schemes, boundary condition implementations, and solver settings.
 
 \subsection{Channel Flow Validation}
 
@@ -316,32 +316,52 @@ Fully-developed channel flow is validated against the DNS data of Moser, Kim, an
     \label{fig:velocity_profiles}
 \end{figure}
 
-The fine mesh simulation captures the viscous sublayer ($u^+ = y^+$), buffer layer, and log-law region accurately, with deviations from DNS less than 2\% in the log-law region.
+The fine mesh simulation captures the viscous sublayer ($u^+ = y^+$), buffer layer, and log-law region accurately, with deviations from DNS less than 2\% in the log-law region. This close agreement with high-fidelity DNS data confirms that our OpenFOAM simulations produce reliable wall shear stress and velocity gradient values in equilibrium channel flow, validating the channel flow portion of our training dataset.
 
 \subsection{Diffuser Validation}
 
-Diffuser simulations are validated against the experimental data of Buice and Eaton (1997) for a planar diffuser with 10° total divergence angle. The skin friction coefficient distribution along the wall shows good agreement with experimental measurements, including the prediction of the separation point location.
+Diffuser simulations are validated against the experimental data of Buice and Eaton (1997) for a planar diffuser with 10° total divergence angle. Figure~\ref{fig:diffuser_validation} shows the skin friction coefficient distribution along the inclined wall, comparing our fine mesh RANS results with the experimental measurements.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{chapter3/diffuser_validation.png}
+    \caption{Diffuser validation against Buice \& Eaton (1997) experimental data. (a) Asymmetric diffuser geometry with 10° divergence and 4.7:1 expansion ratio. (b) Skin friction coefficient distribution showing good agreement between fine mesh k-$\omega$ SST simulation and experimental measurements. The expansion region is highlighted in yellow.}
+    \label{fig:diffuser_validation}
+\end{figure}
+
+The fine mesh simulation captures the gradual reduction in $C_f$ through the expansion region, with agreement within 15\% of experimental values in the attached flow portions of the domain. This level of accuracy is consistent with the expected performance of the $k$-$\omega$ SST model in moderate adverse pressure gradient flows and provides confidence that our diffuser training data represents the true wall shear stress behavior. The slight under-prediction near the outlet reflects the well-documented limitations of two-equation RANS models as flows approach separation, a challenge that ultimately motivates the development of improved wall functions through machine learning.
 
 \subsection{Heat Transfer Validation}
 
-Thermal simulations are validated by comparing the Nusselt number distribution with correlations for turbulent pipe flow. The Dittus-Boelter correlation provides a reference for developed flow regions:
+Thermal simulations are validated by comparing temperature profiles and Nusselt number distributions with DNS data and established correlations. Figure~\ref{fig:heat_transfer_validation} presents the validation results for channel flow heat transfer.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{chapter3/heat_transfer_validation.png}
+    \caption{Heat transfer validation. (a) Temperature profile in wall units ($T^+$ vs $y^+$) for channel flow at $Pr = 0.71$, comparing fine mesh results with JAXA DNS data and analytical laws. (b) Nusselt number development along the channel, showing entrance region effects and comparison with the Dittus-Boelter correlation ($Nu = 55.3$ for fully developed flow).}
+    \label{fig:heat_transfer_validation}
+\end{figure}
+
+The Dittus-Boelter correlation provides a reference for developed flow regions:
 
 \begin{equation}
     Nu = 0.023 \, Re^{0.8} \, Pr^{0.4}
     \label{eq:dittus_boelter}
 \end{equation}
 
-The fine mesh simulations agree with this correlation within 5\% for channel flow cases, providing confidence in the thermal ground truth.
+The fine mesh simulations agree with this correlation within 5\% for channel flow cases in the fully developed region, providing confidence that our thermal training data accurately represents the true wall heat flux values. The entrance region shows expected enhancement that decays toward the correlation value. Together with the velocity validation results, these comparisons establish that our OpenFOAM simulations produce reliable ground truth for both momentum and thermal wall quantities in attached flow conditions, forming a sound foundation for the subsequent machine learning experiments.
 
 \section{Experimental Benchmark Data for Separated Flows}
 \label{sec:ch3_benchmarks}
 
-While our RANS-generated training data covers a comprehensive range of pressure gradient conditions, accurately predicting wall quantities in separated flow regions remains a fundamental challenge. In separated flows, the classical wall function assumptions break down, and models trained only on attached flow data may fail to generalize \cite{driver1985, breuer2009}. To address this limitation, we incorporate high-fidelity experimental and DNS benchmark data from canonical separated flow configurations. This section describes the key benchmark cases and their role in augmenting the training dataset.
+The preceding section demonstrated that our OpenFOAM simulations produce accurate results in attached flow regions, matching DNS and experimental benchmarks within a few percent. However, when flows separate due to strong adverse pressure gradients or geometric discontinuities, the situation changes fundamentally. Despite considerable effort to tune mesh resolution, solver settings, and turbulence model parameters, RANS simulations consistently struggle to match experimental skin friction distributions in separated regions. The classical wall function assumptions break down entirely when flow reverses near the wall, and even the underlying $k$-$\omega$ SST turbulence model---widely regarded as one of the most capable two-equation closures for adverse pressure gradient flows---cannot capture the complex physics of separation and reattachment with the fidelity achieved in attached regions. This is not a limitation of our particular implementation, but rather reflects fundamental shortcomings in RANS modeling of separated flows that persist across the CFD community \cite{driver1985, breuer2009}. It is precisely this gap between RANS capability and physical reality that motivates the development of machine learning wall functions capable of learning the true wall behavior from high-fidelity data.
+
+To address this limitation and provide reliable training data for separated flow conditions, we incorporate experimental and DNS benchmark data from canonical separated flow configurations. While we cannot generate separated flow training data from our own RANS simulations with the same confidence as attached flow data, these established benchmarks provide the ground truth needed to train models that can recognize and correctly predict wall quantities in separated regions.
 
 \subsection{Backward-Facing Step}
 \label{sec:ch3_bfs}
 
-The backward-facing step (BFS) is a canonical benchmark for separated flow studies, featuring sudden expansion that triggers immediate separation at the step corner followed by gradual reattachment downstream \cite{driver1985, 2309_02109_v1}. The geometry and flow structure are illustrated in Figure~\ref{fig:bfs_geometry}.
+The backward-facing step represents the most fundamental separated flow configuration, where a sudden geometric expansion triggers immediate flow separation at the step corner. This geometry has been extensively studied since the landmark experiments of Driver and Seegmiller (1985) \cite{driver1985}, making it an essential validation case for any turbulence modeling approach. Figure~\ref{fig:bfs_geometry} illustrates the geometry and characteristic flow structure.
 
 \begin{figure}[H]
     \centering
@@ -350,16 +370,7 @@ The backward-facing step (BFS) is a canonical benchmark for separated flow studi
     \label{fig:bfs_geometry}
 \end{figure}
 
-The primary experimental reference is Driver and Seegmiller (1985) \cite{driver1985}, conducted at Reynolds number $Re_H = 37{,}500$ based on step height and freestream velocity. This dataset is available through the NASA Turbulence Modeling Resource and has become a standard benchmark for turbulence model validation. Key features include:
-
-\begin{itemize}
-    \item \textbf{Expansion ratio}: 1.125 (step height $H$ = 12.7 mm)
-    \item \textbf{Inlet boundary layer}: Turbulent, $\delta/H \approx 1.5$
-    \item \textbf{Reattachment length}: $x_R/H = 6.26 \pm 0.10$
-    \item \textbf{Available measurements}: Skin friction $C_f(x)$, surface pressure $C_p(x)$, velocity profiles $U(y)$ at multiple stations
-\end{itemize}
-
-Figure~\ref{fig:bfs_cf_profile} shows the characteristic skin friction distribution along the bottom wall. The $C_f$ distribution exhibits three distinct regions that present different challenges for wall function modeling:
+The Driver-Seegmiller experiment was conducted at $Re_H = 37{,}500$ based on step height, with a modest expansion ratio of 1.125 and a turbulent inlet boundary layer of thickness $\delta/H \approx 1.5$. The flow separates immediately at the step corner and reattaches at $x_R/H = 6.26 \pm 0.10$ downstream, creating a well-defined recirculation zone where the wall shear stress becomes negative. This dataset, available through the NASA Turbulence Modeling Resource, includes detailed measurements of skin friction, surface pressure, and velocity profiles at multiple streamwise stations.
 
 \begin{figure}[H]
     \centering
@@ -368,121 +379,81 @@ Figure~\ref{fig:bfs_cf_profile} shows the characteristic skin friction distribut
     \label{fig:bfs_cf_profile}
 \end{figure}
 
-\begin{enumerate}
-    \item \textbf{Recirculation zone} ($0 < x/H < 6.26$): Negative $C_f$ indicates reversed flow. The minimum $C_f \approx -0.003$ occurs at approximately $x/H = 3$.
-    \item \textbf{Reattachment region} ($x/H \approx 6.26$): $C_f = 0$ at the reattachment point, with high gradients in both $C_f$ and $C_p$.
-    \item \textbf{Recovery zone} ($x/H > 6.26$): Gradual recovery toward equilibrium boundary layer values.
-\end{enumerate}
+Figure~\ref{fig:bfs_cf_profile} shows the characteristic skin friction distribution, which transitions through three distinct regions. In the recirculation zone extending from the step to $x/H \approx 6.26$, the reversed flow produces negative $C_f$ with a minimum of approximately $-0.002$ near $x/H = 3$. At reattachment, the skin friction passes through zero with steep gradients in both $C_f$ and $C_p$. Beyond reattachment, the flow gradually recovers toward equilibrium boundary layer conditions. DNS data from Le and Moin (1997) at lower Reynolds number ($Re_H = 5{,}100$) complements these measurements with complete turbulence statistics including Reynolds stress tensor components. When we attempted to reproduce these results using our OpenFOAM setup with the $k$-$\omega$ SST model, the predicted reattachment length differed from the experimental value by approximately 20\%, and the skin friction magnitude in the recirculation zone showed significant discrepancies. This outcome, while consistent with published RANS studies of backward-facing steps, underscores why experimental benchmark data is essential for training ML wall functions that must work correctly in separated regions.
 
-DNS data from Le and Moin (1997) \cite{le1997} at $Re_H = 5{,}100$ provides additional high-fidelity reference data with complete turbulence statistics, confirming the experimental measurements and extending them to the full Reynolds stress tensor.
+\subsection{Wall-Mounted Hump}
+\label{sec:ch3_wall_hump}
 
-\subsection{Flow Over Periodic Hills}
+The NASA wall-mounted hump, based on a modified Glauert-Goldschmied body, provides a benchmark for pressure-induced separation over a smoothly curved surface. Unlike the abrupt separation at a backward-facing step, this geometry features gradual separation driven purely by the adverse pressure gradient on the hump's leeward side, making it particularly relevant for validating wall function behavior under smooth-wall separation conditions. Figure~\ref{fig:wall_hump_geometry} shows the geometry and flow characteristics.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{chapter3/wall_hump_geometry.png}
+    \caption{Wall-mounted hump geometry based on NASA experiments. (a) The hump profile with chord length $c = 420$ mm and maximum height $h/c = 0.128$ mounted on a flat plate. Flow accelerates over the windward face and separates on the leeward side. (b) Skin friction distribution showing the favorable pressure gradient (FPG) region, separation point, recirculation zone, and recovery.}
+    \label{fig:wall_hump_geometry}
+\end{figure}
+
+The experiments were conducted at chord Reynolds number $Re_c = 936{,}000$, significantly higher than other separated flow benchmarks, which tests the ability of wall models to capture high-Reynolds-number separation physics. The hump's maximum height of $h/c = 0.128$ creates strong acceleration over the windward face followed by rapid deceleration on the leeward side. Separation occurs near $x/c = 0.67$ and the flow reattaches at approximately $x/c = 1.1$, creating a separation bubble that extends over roughly 40\% of the chord length. The dataset includes detailed surface pressure and skin friction measurements, providing ground truth for validation across the entire separation and recovery process. RANS models, including the $k$-$\omega$ SST formulation used in this work, typically predict separation onset too late and a separation bubble that is too short compared to experimental measurements, again highlighting the need for data-driven corrections in these flow regimes.
+
+\subsection{Periodic Hills}
 \label{sec:ch3_periodic_hills}
 
-The periodic hill geometry, established as an ERCOFTAC benchmark case (UFR 3-30), features cyclic separation and reattachment that tests model behavior under repeated flow reversals \cite{breuer2009, 2206_05226_v2}. The geometry is illustrated in Figure~\ref{fig:periodic_hills_geometry}.
+The periodic hills configuration, established as ERCOFTAC benchmark case UFR 3-30, extends separated flow validation to geometries with cyclic separation and reattachment \cite{breuer2009}. The domain consists of a channel with smoothly-contoured hills on the lower wall, where the flow separates on each hill's lee side and reattaches in the valley before the next hill. This periodic arrangement enables collection of statistically converged data from a compact computational domain while testing model behavior under repeated pressure gradient reversals.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{chapter3/periodic_hills_geometry.png}
-    \caption{Periodic hills geometry. (a) Domain showing the hill profile, with period $L_x = 9H$ and channel height $L_y = 3.035H$. The hill shape is defined by polynomial curves. (b) Flow visualization showing separation on the lee side of each hill and reattachment before the windward face of the next hill.}
+    \caption{Periodic hills geometry showing two periods of the domain. (a) Hill profile with height $H$, period $L_x = 9H$, and channel height $L_y = 3.035H$. The polynomial hill shape creates smooth pressure gradient transitions. (b) Flow structure showing separation on each lee side and reattachment in the valleys, with recirculation indicated by reversed streamlines.}
     \label{fig:periodic_hills_geometry}
 \end{figure}
 
-The comprehensive study by Breuer et al. (2009) \cite{breuer2009} provides both experimental (LDA) and numerical (DNS/LES) reference data across multiple Reynolds numbers:
-
-\begin{itemize}
-    \item \textbf{Reynolds numbers studied}: $Re_H = 5{,}600$ (DNS), $10{,}595$ (LES/experiments), $19{,}000$, $37{,}000$
-    \item \textbf{Domain size}: $L_x \times L_y \times L_z = 9H \times 3.035H \times 4.5H$
-    \item \textbf{Separation point}: $x/H \approx 0.5$ (lee side of hill crest)
-    \item \textbf{Reattachment point}: $x/H \approx 4.5$ (dependent on Reynolds number)
-    \item \textbf{Available data}: Wall shear stress $\tau_w(x)$, mean velocity profiles, Reynolds stresses
-\end{itemize}
-
-Figure~\ref{fig:periodic_hills_cf} shows the wall shear stress distribution over one period, highlighting the regions of favorable pressure gradient (windward side), adverse pressure gradient (lee side), separation, and recovery.
+The comprehensive study by Breuer et al. (2009) provides both LDA measurements and high-fidelity LES data at $Re_H = 10{,}595$, with additional DNS data available at $Re_H = 5{,}600$. The separation point occurs consistently at $x/H \approx 0.5$ on the lee side of each hill crest, while the reattachment location varies with Reynolds number, typically falling near $x/H \approx 4.5$ for the reference case. Figure~\ref{fig:periodic_hills_cf} presents the wall shear stress distribution over one period, illustrating the rapid transition from favorable pressure gradient on the windward side to separation and eventual recovery.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{chapter3/periodic_hills_cf.png}
-    \caption{Wall shear stress distribution over one period of the periodic hills geometry at $Re_H = 10{,}595$ from Breuer et al. (2009). FPG = favorable pressure gradient (windward side), APG = adverse pressure gradient (lee side). The separation bubble extends from $x/H \approx 0.5$ to $x/H \approx 4.5$.}
+    \caption{Wall shear stress distribution over one period of the periodic hills geometry at $Re_H = 10{,}595$ from Breuer et al. (2009). The flow experiences favorable pressure gradient (FPG) on the windward face with high $C_f$, transitions to adverse pressure gradient (APG) past the crest, separates near $x/H = 0.5$, and recovers after reattachment near $x/H = 4.5$.}
     \label{fig:periodic_hills_cf}
 \end{figure}
 
-The periodic nature of this geometry makes it particularly valuable for training because each period provides consistent separation/reattachment behavior, enabling the collection of multiple statistically independent samples from a single simulation.
-
-\subsection{Asymmetric Plane Diffuser}
-\label{sec:ch3_asymmetric_diffuser}
-
-The asymmetric plane diffuser of Buice and Eaton (1997) \cite{buice1997} represents a more gradual separation scenario compared to the sudden expansion of the backward-facing step. This geometry tests model performance under smooth-wall separation driven by adverse pressure gradient alone, without geometric singularities.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.95\textwidth]{chapter3/diffuser_geometry.png}
-    \caption{Asymmetric plane diffuser geometry from Buice \& Eaton (1997). The lower wall diverges at $\theta = 10°$ over a length of $21H$, expanding the channel from height $H$ to $4.7H$. The upper wall remains flat. Fully developed channel flow enters at $x/H = 0$.}
-    \label{fig:diffuser_geometry}
-\end{figure}
-
-Key characteristics of the Buice-Eaton diffuser:
-
-\begin{itemize}
-    \item \textbf{Divergence angle}: $\theta = 10°$ (total included angle)
-    \item \textbf{Expansion ratio}: $H_{out}/H_{in} = 4.7$
-    \item \textbf{Reynolds number}: $Re_H = 20{,}000$ based on inlet channel height and bulk velocity
-    \item \textbf{Inlet condition}: Fully developed turbulent channel flow ($C_f = 0.0061$)
-    \item \textbf{Separation location}: Approximately 2/3 of the way along the inclined wall
-    \item \textbf{Available measurements}: Wall shear stress (pulsed wall-wire probes), mean and fluctuating velocities, surface pressure
-\end{itemize}
-
-Figure~\ref{fig:diffuser_cf} presents the skin friction distribution along the inclined wall, showing the gradual transition from attached flow to separation.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.85\textwidth]{chapter3/diffuser_cf.png}
-    \caption{Skin friction coefficient along the inclined wall of the asymmetric diffuser from Buice \& Eaton (1997). The flow gradually decelerates under the adverse pressure gradient, transitioning through incipient separation ($C_f \to 0$) to intermittent reversed flow in the downstream region.}
-    \label{fig:diffuser_cf}
-\end{figure}
-
-This benchmark is particularly relevant for our diffuser training cases, as it represents a more challenging version of the adverse pressure gradient conditions present in our geometry parameterization.
+The periodic nature of this geometry makes it particularly demanding for RANS models, as errors in predicting separation or reattachment accumulate over successive hill periods. Published RANS studies consistently under-predict the separation bubble extent, and our own OpenFOAM simulations exhibit similar deficiencies. This periodic hills benchmark therefore provides a stringent test for any ML wall function that claims to improve upon classical RANS predictions in complex separated flows.
 
 \subsection{DNS Databases}
 \label{sec:ch3_dns_databases}
 
-In addition to experimental data, Direct Numerical Simulation databases provide complete flow field information at high fidelity, enabling extraction of any quantity of interest including higher-order statistics.
+In addition to experimental data, Direct Numerical Simulation databases provide complete flow field information at high fidelity, enabling extraction of any quantity of interest including higher-order statistics. We have downloaded and processed data from several authoritative DNS databases, summarized in Table~\ref{tab:dns_databases}.
 
-\subsubsection{Johns Hopkins Turbulence Database (JHTDB)}
+\begin{table}[H]
+\centering
+\caption{DNS databases used for validation and training data augmentation.}
+\label{tab:dns_databases}
+\small
+\begin{tabular}{llll}
+\toprule
+\textbf{Database} & \textbf{Flow Type} & \textbf{$Re_\tau$ / Conditions} & \textbf{Data Available} \\
+\midrule
+MKM \cite{moser1999} & Channel & 180, 395, 590 & $u^+$, $\overline{u'v'}$, $k$ \\
+Lee \& Moser \cite{lee2015} & Channel & 1000, 2000, 5200 & Mean profiles, stresses \\
+JAXA Thermal & Channel (heated) & 180--1020 & $T^+$, $Pr_t$ \\
+KTH Stockholm & Flat plate TBL & $Re_\theta = 670$--$4{,}300$ & $u^+$, $C_f$, $\delta^*$ \\
+Wu et al. & Bypass transition & 50+ stations & Heat transfer, $\overline{u'T'}$ \\
+JHTDB & Channel & 1000, 5200 & Full 3D fields \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-The Johns Hopkins Turbulence Database provides open access to DNS data for various canonical flows:
+The MKM database from Moser, Kim, and Mansour (1999) provides the primary validation data for our channel flow cases, with complete mean velocity profiles, Reynolds stress components, and turbulent kinetic energy budgets at three Reynolds numbers spanning the range typical of industrial applications. The JAXA thermal DNS database extends this to heated channel flows, providing temperature profiles and turbulent Prandtl number distributions at multiple Prandtl numbers, which is essential for validating our thermal wall function predictions.
 
-\begin{itemize}
-    \item \textbf{Channel flow at $Re_\tau = 1{,}000$}: 130 TB dataset with full temporal evolution, domain size $8\pi \times 2 \times 3\pi$, resolution $2048 \times 512 \times 1536$
-    \item \textbf{Channel flow at $Re_\tau = 5{,}200$}: Snapshots at higher Reynolds number (20 TB)
-    \item \textbf{Transitional boundary layer}: 105 TB dataset covering bypass transition
-\end{itemize}
+For boundary layer flows, the KTH Stockholm database from Schlatter and \"{O}rl\"{u} provides high-fidelity flat plate turbulent boundary layer data across a range of momentum thickness Reynolds numbers. The transitional DNS data from Wu et al. captures bypass transition with detailed heat transfer statistics at over 50 streamwise stations, enabling validation of models in the challenging transitional regime.
 
-These datasets enable validation of our RANS-based training data against fully-resolved turbulence and provide reference wall shear stress distributions under equilibrium conditions.
-
-\subsubsection{Other DNS Resources}
-
-Additional DNS resources include:
-\begin{itemize}
-    \item Moser, Kim, and Mansour (1999) \cite{moser1999}: Channel flow at $Re_\tau = 180$, $395$, $590$ --- used for validating our channel flow cases
-    \item Lee and Moser (2015) \cite{lee2015}: Extended channel flow DNS up to $Re_\tau = 5{,}200$
-    \item TU Darmstadt DNS Database: Various wall-bounded turbulent flows with detailed near-wall statistics
-\end{itemize}
+The Johns Hopkins Turbulence Database (JHTDB) provides access to exceptionally large DNS datasets with full three-dimensional, time-resolved flow fields. While the complete datasets are too large for local storage (exceeding 100 TB), we access specific quantities through the database's web API for targeted validation studies at higher Reynolds numbers than the locally stored MKM data.
 
 \subsection{Role of Benchmark Data in Training}
 \label{sec:ch3_benchmark_role}
 
-The experimental and DNS benchmark data serve multiple purposes in our machine learning wall function development:
+The experimental and DNS benchmark data described above serve a critical role in our machine learning wall function development. Most fundamentally, they fill the gap where our RANS simulations cannot be trusted: as demonstrated in the preceding subsections, even well-tuned RANS models with fine mesh resolution consistently fail to match experimental skin friction distributions in separated regions. By incorporating benchmark data as training targets, we enable the neural network to learn the correct wall behavior in flow regimes where RANS-generated ground truth would be misleading.
 
-\begin{enumerate}
-    \item \textbf{Training data augmentation}: High-fidelity data from separated flow benchmarks fills the gap where RANS simulations are unreliable. This is investigated in the Additional Studies (Chapter~\ref{chap:additional_studies}).
-
-    \item \textbf{Validation}: Benchmark data provides independent validation of model predictions, especially for separated flows outside the training distribution.
-
-    \item \textbf{Physics insight}: The detailed measurements inform feature engineering decisions, identifying which flow quantities are predictable in separated regions.
-
-    \item \textbf{Distribution shift analysis}: Comparing feature distributions between attached (RANS) and separated (experimental) data quantifies the domain shift that limits generalization.
-\end{enumerate}
+Beyond training data augmentation, the benchmarks provide independent validation of model predictions that is particularly valuable for separated flows outside the training distribution. The detailed measurements also inform our feature engineering decisions, as they reveal which flow quantities remain predictable in separated regions and which lose their correlation with wall quantities. Finally, comparing the feature distributions between attached flow data from RANS and separated flow data from experiments helps quantify the domain shift that limits generalization and guides strategies to bridge this gap. The integration of benchmark data into the training pipeline is investigated systematically in Chapters~\ref{chap:physics_features}--\ref{chap:physics_constrained}, where we compare model performance with and without benchmark data augmentation.
 
 \subsubsection{Simulate-and-Replace Integration Method}
 \label{sec:ch3_simulate_replace}
@@ -502,19 +473,6 @@ This approach is illustrated conceptually:
 \end{equation}
 
 The key insight is that by pairing RANS features with experimental targets, the neural network learns to correct the systematic bias in RANS predictions for separated flows. When the coarse mesh shows features indicative of separation (decelerating flow, adverse pressure gradient, flow reversal near wall), the model learns that the true $C_f$ differs from what RANS would predict.
-
-\subsubsection{Separation-Aware Loss Weighting}
-
-To further emphasize accuracy in separated regions, we employ a weighted loss function:
-\begin{equation}
-    \mathcal{L} = \frac{1}{N} \sum_{i=1}^{N} w_i \left( \hat{C}_{f,i} - C_{f,i}^\text{true} \right)^2
-\end{equation}
-where the weight $w_i$ is elevated for samples from separated flow regions:
-\begin{equation}
-    w_i = 1 + (\alpha_\text{sep} - 1) \cdot \mathbb{1}[C_{f,i} < \epsilon] + (\alpha_\text{bench} - 1) \cdot \mathbb{1}[\text{source}_i = \text{benchmark}]
-\end{equation}
-
-Here $\alpha_\text{sep}$ and $\alpha_\text{bench}$ are hyperparameters controlling the emphasis on separated flows and benchmark data respectively. Typical values are $\alpha_\text{sep} = 3$ and $\alpha_\text{bench} = 2$, giving separated benchmark samples up to 4$\times$ the weight of attached RANS samples. This encourages the model to prioritize accuracy in the most challenging flow regimes where traditional wall functions fail.
 
 \subsubsection{Target Variable Consistency: Converting $C_f$ to $\tau_w$}
 \label{sec:ch3_cf_conversion}
@@ -543,323 +501,69 @@ This dimensional consistency ensures that benchmark-derived training samples int
 \subsubsection{Thermal Data Limitations in Benchmark Experiments}
 \label{sec:ch3_thermal_limitation}
 
-A significant limitation of available separated flow benchmarks is the \textbf{scarcity of heat transfer measurements}. While momentum quantities ($C_f$, $C_p$, velocity profiles) are routinely measured using pressure taps, hot-wire anemometry, or LDA, thermal measurements require:
-
-\begin{itemize}
-    \item Heated or cooled test section walls
-    \item Embedded thermocouples or infrared thermography
-    \item Careful thermal insulation to ensure defined boundary conditions
-    \item Significantly more complex experimental apparatus
-\end{itemize}
-
-Consequently, most canonical separated flow benchmarks provide only momentum data:
-
-\begin{table}[H]
-\centering
-\caption{Availability of momentum and thermal data in separated flow benchmarks.}
-\label{tab:thermal_availability}
-\begin{tabular}{lccc}
-\toprule
-\textbf{Benchmark} & \textbf{$C_f$ / $\tau_w$} & \textbf{$q_w$ / Nu / St} & \textbf{Reference} \\
-\midrule
-Backward-facing step (Driver \& Seegmiller) & \checkmark & --- & \cite{driver1985} \\
-Periodic hills (Breuer et al.) & \checkmark & --- & \cite{breuer2009} \\
-Asymmetric diffuser (Buice \& Eaton) & \checkmark & --- & \cite{buice1997} \\
-Channel flow DNS (Moser et al.) & \checkmark & \checkmark$^*$ & \cite{moser1999} \\
-Heated backward step (Vogel \& Eaton) & \checkmark & \checkmark & \cite{vogel1985} \\
-\bottomrule
-\multicolumn{4}{l}{\small $^*$DNS databases can include passive scalar transport for thermal analysis.}
-\end{tabular}
-\end{table}
-
-This creates an asymmetry in our training data: benchmark data constrains $\tau_w$ predictions in separated regions, but $q_w$ predictions remain informed only by RANS-generated data.
-
-\subsubsection{Multi-Task Learning with Partial Targets}
-\label{sec:ch3_partial_targets}
-
-To address the thermal data gap, we employ \textbf{multi-task learning with partial targets}. The neural network predicts both outputs simultaneously, but the loss function handles missing targets gracefully:
-
-\begin{equation}
-    \mathcal{L} = \frac{1}{N} \sum_{i=1}^{N} \left[ w_i^{(\tau)} \cdot \mathcal{L}_{\tau_w,i} + \mathbb{1}[q_{w,i} \neq \text{NaN}] \cdot w_i^{(q)} \cdot \mathcal{L}_{q_w,i} \right]
-    \label{eq:partial_target_loss}
-\end{equation}
-
-where $\mathbb{1}[\cdot]$ is the indicator function that excludes $q_w$ loss terms when thermal data is unavailable. In practice:
-
-\begin{itemize}
-    \item \textbf{RANS samples}: Both $\tau_w$ and $q_w$ targets are available; both loss terms contribute.
-    \item \textbf{Benchmark samples}: Only $\tau_w$ target is available; $q_w$ loss term is masked out.
-\end{itemize}
-
-This approach offers several advantages:
-
-\begin{enumerate}
-    \item \textbf{Shared feature learning}: The hidden layers learn representations useful for both $\tau_w$ and $q_w$ prediction. Improved $\tau_w$ features from benchmark data may indirectly benefit $q_w$ prediction through transfer within the network.
-
-    \item \textbf{Physical coupling}: Momentum and thermal boundary layers share underlying physics. Features that help distinguish attached from separated flow (e.g., velocity deceleration, flow reversal indicators) inform both outputs.
-
-    \item \textbf{Graceful degradation}: The model learns $\tau_w$ from the combined RANS+benchmark dataset and $q_w$ from RANS data alone. Where benchmark data improves feature representations, $q_w$ benefits; where it does not, $q_w$ predictions default to RANS-trained behavior.
-\end{enumerate}
-
-\subsubsection{Expected Outcomes and Future Work}
-\label{sec:ch3_expected_outcomes}
-
-Based on the above methodology, we anticipate the following outcomes from integrating benchmark data:
-
-\begin{enumerate}
-    \item \textbf{Improved $\tau_w$ prediction in separated regions}: The simulate-and-replace approach, combined with separation-aware loss weighting, should reduce prediction errors where RANS-trained models currently fail. Specifically:
-    \begin{itemize}
-        \item Correct sign prediction ($\tau_w < 0$) in recirculation zones
-        \item Accurate reattachment point location ($\tau_w = 0$)
-        \item Improved magnitude prediction in the recovery region
-    \end{itemize}
-
-    \item \textbf{Maintained $q_w$ accuracy in attached regions}: Since thermal targets come from RANS data (which is reliable in attached flows), $q_w$ predictions should remain accurate where the training methodology is unchanged.
-
-    \item \textbf{Uncertain $q_w$ behavior in separated regions}: Without benchmark thermal data, $q_w$ predictions in separated flows will rely on:
-    \begin{itemize}
-        \item Generalization from RANS thermal data
-        \item Transfer learning through shared hidden representations
-        \item Physical coupling between momentum and thermal boundary layers
-    \end{itemize}
-    The accuracy of these predictions remains an open question that future work should address through:
-    \begin{itemize}
-        \item Acquisition of thermal benchmark data (e.g., heated backward step experiments)
-        \item DNS with passive scalar transport for benchmark geometries
-        \item Physics-informed constraints based on the Reynolds analogy (though this analogy weakens in separated flows where $Pr_t$ varies significantly)
-    \end{itemize}
-\end{enumerate}
-
-The experiments in Chapter~\ref{chap:additional_studies} will quantitatively evaluate these expected outcomes, comparing models trained with and without benchmark data augmentation across the full range of flow conditions.
+A significant limitation of available separated flow benchmarks is the scarcity of heat transfer measurements. While momentum quantities such as skin friction coefficient, pressure coefficient, and velocity profiles are routinely measured using pressure taps, hot-wire anemometry, or laser Doppler anemometry, thermal measurements demand considerably more complex experimental apparatus. Accurate wall heat flux measurements require heated or cooled test section walls with precisely controlled boundary conditions, embedded thermocouples or infrared thermography for surface temperature measurement, and careful thermal insulation to minimize heat losses to the surroundings. These additional requirements explain why most canonical separated flow benchmarks---including the backward-facing step of Driver and Seegmiller \cite{driver1985}, the periodic hills of Breuer et al. \cite{breuer2009}, and the asymmetric diffuser of Buice and Eaton---provide only momentum data. Notable exceptions include DNS databases that can simulate passive scalar transport and dedicated heated experiments such as the heated backward-facing step of Vogel and Eaton \cite{vogel1985}. This asymmetry in available benchmark data means that our training methodology can augment $\tau_w$ targets in separated regions with high-fidelity experimental values, while $q_w$ predictions must rely primarily on RANS-generated training data. The implications of this limitation are examined in Chapter~\ref{chap:physics_constrained}, where we investigate whether shared feature representations learned from momentum benchmarks can indirectly improve thermal predictions.
 
 Table~\ref{tab:benchmark_summary} summarizes the key characteristics of each benchmark case.
 
 \begin{table}[H]
 \centering
+\small
 \caption{Summary of experimental and DNS benchmark cases for separated flows.}
 \label{tab:benchmark_summary}
-\begin{tabular}{|l|c|c|c|c|}
-\hline
-\textbf{Benchmark} & \textbf{$Re$} & \textbf{Separation Type} & \textbf{Data Available} & \textbf{Reference} \\
-\hline
-Backward-facing step & 37,500 & Geometry-induced & $C_f$, $C_p$, $U(y)$ & Driver \& Seegmiller \\
-Periodic hills & 10,595 & Pressure-induced & $\tau_w$, $U(y)$, $\langle u'v'\rangle$ & Breuer et al. \\
-Asymmetric diffuser & 20,000 & Smooth APG & $C_f$, $C_p$, $U(y)$ & Buice \& Eaton \\
-Channel flow DNS & $Re_\tau$ = 1000 & None (attached) & Full field data & JHTDB \\
-\hline
+\begin{tabular}{llll}
+\toprule
+\textbf{Benchmark} & \textbf{$Re$} & \textbf{Separation} & \textbf{Data} \\
+\midrule
+Backward-facing step & 37,500 & Geometry-induced & $C_f$, $C_p$, $U(y)$ \\
+Periodic hills & 10,595 & Pressure-induced & $\tau_w$, $U(y)$ \\
+Asymmetric diffuser & 20,000 & Smooth APG & $C_f$, $C_p$ \\
+Channel flow DNS & $Re_\tau = 1000$ & Attached & Full field \\
+\bottomrule
 \end{tabular}
 \end{table}
 
 The integration of these benchmark datasets with our RANS-generated training data addresses the fundamental challenge identified in Chapter~\ref{chap:literature}: developing wall functions that remain accurate across the full spectrum of flow conditions, from equilibrium attached flows to complex separated regions.
 
-\section{Flow Field Analysis}
-\label{sec:ch3_flow_analysis}
-
-Understanding the flow physics is essential for interpreting the training data and ensuring that the neural network learns physically meaningful relationships.
-
-\subsection{Velocity and Pressure Fields}
-
-Figure~\ref{fig:flow_contours} presents contour plots of the flow field variables for a representative diffuser case.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.95\textwidth]{chapter3/flow_contours.png}
-    \caption{Flow field visualization for a diffuser with ER = 4.7 and $\theta = 10°$. (a) Velocity magnitude showing deceleration in the expansion region. (b) Pressure field showing pressure recovery. (c) Temperature field showing thermal boundary layer development. (d) Wall quantities ($\tau_w$ and $q_w$) along the bottom wall, with the expansion region shaded.}
-    \label{fig:flow_contours}
-\end{figure}
-
-The velocity field shows the expected deceleration in the diffuser expansion region due to area increase. The pressure field shows pressure recovery as kinetic energy is converted to pressure energy. The temperature field shows thermal boundary layer growth along the heated wall.
-
-\subsection{Effect of Pressure Gradient}
-
-The pressure gradient has a profound effect on the boundary layer structure:
-
-\begin{itemize}
-    \item \textbf{Adverse pressure gradient (APG)}: The boundary layer thickens, the velocity profile becomes less full, and the wall shear stress decreases. In severe cases, flow separation occurs where $\tau_w < 0$.
-
-    \item \textbf{Favorable pressure gradient (FPG)}: The boundary layer thins, the velocity profile becomes fuller, and the wall shear stress increases.
-
-    \item \textbf{Zero pressure gradient (ZPG)}: The boundary layer grows gradually according to classical flat plate theory.
-\end{itemize}
-
-These effects are reflected in the training data, and the neural network must learn to distinguish between these regimes based on local flow features.
-
-\section{Stencil-Based Feature Extraction}
+\section{Stencil-Based Input Representation}
 \label{sec:ch3_stencil}
 
-For each wall-adjacent cell in the coarse mesh, a structured $3 \times 5$ stencil of neighboring cells is extracted. This stencil captures local flow context in both streamwise and wall-normal directions, providing the neural network with information beyond the immediate wall-adjacent cell.
+For each wall-adjacent cell in the coarse mesh, a structured $3 \times 5$ stencil of neighboring cells is extracted, capturing local flow context in both streamwise and wall-normal directions. The stencil consists of 15 cells arranged in a 3 (streamwise) $\times$ 5 (wall-normal) grid centered on the wall-adjacent cell of interest. For curved or inclined wall surfaces, stencils are extracted using local wall-aligned coordinate transformations, where the tangent and normal vectors adapt to the local wall orientation. This enables the trained model to be deployed on arbitrary geometries.
 
-\subsection{Stencil Structure}
-
-The stencil consists of 15 cells arranged in a 3 (streamwise) $\times$ 5 (wall-normal) grid centered on the wall-adjacent cell of interest. Figure~\ref{fig:stencil_detailed} illustrates the stencil structure and data organization.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.95\textwidth]{chapter3/stencil_detailed.png}
-    \caption{Stencil extraction methodology. (a) The $3 \times 5$ stencil on the computational mesh, with the center cell (target location) highlighted in red and stencil cells in blue. (b) Data structure showing the indexing convention and variables extracted per cell. Each stencil provides 90 input values (15 cells $\times$ 6 variables).}
-    \label{fig:stencil_detailed}
-\end{figure}
-
-\subsection{Stencil Extraction on Curved Surfaces}
-
-A key capability of our methodology is the ability to extract stencils on curved or inclined wall surfaces. This is achieved through local wall-aligned coordinate transformations. At each wall location:
-
-\begin{enumerate}
-    \item The local \textbf{wall tangent} direction is computed from the wall geometry.
-    \item The local \textbf{wall normal} direction is perpendicular to the tangent.
-    \item Cell neighbors are selected based on their position in this local coordinate system.
-\end{enumerate}
-
-Figure~\ref{fig:stencil_curved} demonstrates stencil extraction on two curved geometries: a diffuser expansion region and a wall-mounted hump. The local coordinate system adapts to the wall orientation, ensuring consistent feature extraction regardless of wall shape.
-
-\begin{figure}[H]
-    \centering
-    \begin{subfigure}[b]{0.48\textwidth}
-        \includegraphics[width=\textwidth]{chapter3/stencil_curved_diffuser.png}
-        \caption{Diffuser expansion region}
-    \end{subfigure}
-    \hfill
-    \begin{subfigure}[b]{0.48\textwidth}
-        \includegraphics[width=\textwidth]{chapter3/stencil_curved_hump.png}
-        \caption{Wall-mounted hump}
-    \end{subfigure}
-    \caption{Stencil extraction on curved surfaces using local wall-aligned coordinates. The tangent (green) and normal (orange) vectors adapt to the local wall orientation. Cell indices $(i,j)$ are defined in this local coordinate system, ensuring consistent feature extraction regardless of wall curvature.}
-    \label{fig:stencil_curved}
-\end{figure}
-
-This wall-aligned extraction enables the trained model to be deployed on arbitrary geometries by applying the same local coordinate transformation at runtime.
-
-\subsection{Stencil Extraction Algorithm}
-
-The extraction algorithm proceeds as follows for each wall-adjacent cell:
-
-\begin{enumerate}
-    \item Identify the wall-adjacent cell at streamwise position $i$.
-    \item Compute the local wall tangent and normal vectors.
-    \item Extract cells at positions $(i-1, i, i+1)$ in the tangential (streamwise) direction.
-    \item For each tangential position, extract cells at wall-normal layers $j = 0, 1, 2, 3, 4$.
-    \item Collect the primitive variables from each cell.
-    \item Store the stencil data as a tensor of shape $(3, 5, 6)$ or flattened to dimension 90.
-\end{enumerate}
-
-Special handling is required at domain boundaries:
-\begin{itemize}
-    \item At the inlet boundary, the upstream cell is extrapolated from interior values.
-    \item At the outlet boundary, the downstream cell is extrapolated similarly.
-    \item Cells beyond the wall-normal extent are not included (the stencil is truncated if necessary).
-\end{itemize}
-
-\subsection{Input Variables}
-
-For each of the 15 cells in the stencil, six primitive variables are extracted:
-
-\begin{table}[H]
-\centering
-\caption{Primitive variables extracted for each stencil cell.}
-\label{tab:input_variables}
-\begin{tabular}{|l|l|l|}
-\hline
-\textbf{Variable} & \textbf{Symbol} & \textbf{Units} \\
-\hline
-Streamwise coordinate & $x$ & m \\
-Wall-normal coordinate & $y$ & m \\
-Pressure & $p$ & Pa \\
-Streamwise velocity & $U_x$ & m/s \\
-Wall-normal velocity & $U_y$ & m/s \\
-Temperature & $T$ & K \\
-\hline
-\end{tabular}
-\end{table}
-
-This yields an input tensor of shape $(3, 5, 6)$ or a flattened vector of dimension $3 \times 5 \times 6 = 90$.
-
-\section{Ground Truth Computation}
-\label{sec:ch3_ground_truth}
-
-The neural network is trained to predict two wall quantities: wall shear stress and wall heat flux. These are computed from the fine mesh solution.
-
-\subsection{Wall Shear Stress}
-
-The wall shear stress is computed from the velocity gradient at the wall:
-
-\begin{equation}
-    \tau_w = \mu \left.\frac{\partial U_x}{\partial y}\right|_{y=0}
-    \label{eq:tau_w}
-\end{equation}
-
-where $\mu$ is the dynamic viscosity. In OpenFOAM, this is computed using the \texttt{wallShearStress} function object, which evaluates the viscous stress at wall boundaries.
-
-For non-dimensional analysis, the skin friction coefficient is defined as:
-
-\begin{equation}
-    C_f = \frac{\tau_w}{\frac{1}{2} \rho U_{ref}^2}
-    \label{eq:cf}
-\end{equation}
-
-where $U_{ref}$ is the inlet velocity.
-
-\subsection{Wall Heat Flux}
-
-The wall heat flux is computed from the temperature gradient at the wall:
-
-\begin{equation}
-    q_w = -k \left.\frac{\partial T}{\partial y}\right|_{y=0}
-    \label{eq:q_w}
-\end{equation}
-
-where $k$ is the thermal conductivity. The negative sign indicates that positive $q_w$ corresponds to heat transfer into the fluid (when $T_w > T_{fluid}$).
-
-For non-dimensional analysis, the Stanton number is defined as:
-
-\begin{equation}
-    \mathrm{St} = \frac{q_w}{\rho C_p U_{ref} (T_w - T_{in})}
-    \label{eq:st}
-\end{equation}
-
-\subsection{Handling of Separated Flow}
-
-In regions of flow separation, the wall shear stress becomes negative ($\tau_w < 0$), indicating reversed flow near the wall. The neural network must be capable of predicting this behavior. The training data includes cases with:
-
-\begin{itemize}
-    \item Attached flow: $\tau_w > 0$ throughout
-    \item Incipient separation: $\tau_w \approx 0$ locally
-    \item Separated flow: $\tau_w < 0$ in the separation bubble
-\end{itemize}
-
-The sign of $\tau_w$ is preserved in the training data to enable the network to learn separation prediction.
+For each of the 15 cells in the stencil, six primitive variables are extracted: streamwise and wall-normal coordinates $(x, y)$, pressure $p$, velocity components $(U_x, U_y)$, and temperature $T$. This yields an input vector of dimension $3 \times 5 \times 6 = 90$.
 
 \section{Dataset Summary and Statistics}
 \label{sec:ch3_dataset}
 
-The complete training dataset consists of paired input-output samples extracted from the 244 geometry configurations.
+The complete training dataset consists of paired input-output samples extracted from the 244 geometry configurations. The neural network is trained to predict two wall quantities from the stencil inputs. The \textbf{wall shear stress} $\tau_w = \mu (\partial U_x / \partial y)|_{y=0}$ is computed from the fine mesh velocity gradient, with the non-dimensional skin friction coefficient $C_f = \tau_w / (\frac{1}{2} \rho U_{ref}^2)$ used as the training target. The \textbf{wall heat flux} $q_w = -k (\partial T / \partial y)|_{y=0}$ is similarly computed from the fine mesh temperature gradient, with the Stanton number $\mathrm{St} = q_w / (\rho C_p U_{ref} \Delta T)$ as the thermal target. In separated flow regions, the wall shear stress becomes negative ($\tau_w < 0$), and this sign is preserved in the training data to enable the network to learn separation prediction.
 
 \begin{table}[H]
 \centering
 \caption{Summary of the generated training dataset.}
 \label{tab:dataset_summary}
-\begin{tabular}{|l|c|}
-\hline
+\small
+\begin{tabular}{lc}
+\toprule
 \textbf{Parameter} & \textbf{Value} \\
-\hline
+\midrule
 Total geometry configurations & 244 \\
 \quad Diffuser cases & 180 \\
 \quad Nozzle cases & 60 \\
 \quad Channel cases & 4 \\
-\hline
+\midrule
 Total training samples & 25,485 \\
 Input features per sample & 90 (primitive) \\
 Output targets per sample & 2 ($C_f$, St) \\
-\hline
+\midrule
 Expansion ratio range & 0.5--5.5 \\
 Divergence angle range & $0°$--$20°$ \\
 Reynolds number range & 8,000--24,000 \\
-\hline
+\bottomrule
 \end{tabular}
 \end{table}
 
 \subsection{Dataset Statistics}
 
-Figure~\ref{fig:dataset_statistics} presents the statistical distributions of the output variables and their correlations.
+Figure~\ref{fig:dataset_statistics} presents the statistical distributions of the output variables and their correlations. The $C_f$ distribution is positively skewed, exhibiting a long tail toward higher values that corresponds to accelerating flow regions in nozzle geometries where the boundary layer thins and wall shear stress increases. The Stanton number distribution shows similar characteristics, reflecting the Reynolds analogy between momentum and heat transfer that couples these two quantities. The correlation coefficient between $C_f$ and St is approximately 0.85, indicating a strong but imperfect relationship---the deviation from perfect correlation arises from variations in the turbulent Prandtl number and from thermal boundary layer effects that differ from momentum boundary layer behavior, particularly in regions of strong pressure gradient or near separation.
 
 \begin{figure}[H]
     \centering
@@ -868,114 +572,15 @@ Figure~\ref{fig:dataset_statistics} presents the statistical distributions of th
     \label{fig:dataset_statistics}
 \end{figure}
 
-Key observations from the dataset statistics:
-
-\begin{itemize}
-    \item The $C_f$ distribution is positively skewed, with a long tail toward higher values corresponding to accelerating flow regions.
-    \item The St distribution shows similar characteristics, reflecting the Reynolds analogy between momentum and heat transfer.
-    \item The correlation coefficient between $C_f$ and St is approximately 0.85, indicating a strong but not perfect relationship that the neural network can exploit.
-\end{itemize}
-
-\section{Data Splitting for Machine Learning}
-\label{sec:ch3_preprocessing}
-
-Prior to neural network training, the dataset is split into training (70\%) and test (30\%) sets. Importantly, the split is performed at the \textbf{geometry level}, not the sample level:
-
-\begin{itemize}
-    \item All samples from a given geometry configuration belong entirely to either the training or test set.
-    \item This ensures the test set evaluates true generalization to unseen geometries, not interpolation between similar flow conditions.
-    \item All geometry types (diffuser, nozzle, channel) are represented in both sets.
-\end{itemize}
-
-Feature normalization and scaling strategies are discussed in Chapter~\ref{chap:physics_features}, where we compare different input representations including primitive variables and physics-based features.
-
-\section{Training Data Sources Strategy}
-\label{sec:ch3_data_sources_strategy}
-
-The preceding sections have presented two complementary sources of training data: RANS-generated data from our dual-mesh methodology and high-fidelity benchmark data from DNS and experimental studies. This section synthesizes these approaches into a unified training strategy illustrated in Figure~\ref{fig:data_sources_strategy}.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.98\textwidth]{chapter3/data_sources_strategy.png}
-    \caption{Training data sources strategy for ML wall functions. (a) Flow regions and corresponding data sources: attached flow regions use RANS-generated data, while separated flow regions require DNS or experimental benchmarks. (b) Summary of available benchmark cases with their characteristics. (c) Decision flowchart for data source selection. (d) Comparison of strengths and limitations of each data source, motivating the combined strategy.}
-    \label{fig:data_sources_strategy}
-\end{figure}
-
-\subsection{Region-Based Data Source Selection}
-\label{sec:ch3_region_selection}
-
-The fundamental insight driving our training strategy is that different flow regions have different data requirements:
-
-\begin{itemize}
-    \item \textbf{Attached flow regions} ($\tau_w > 0$, mild pressure gradients): The classical wall function assumptions \cite{launder1974, spalding1961} remain approximately valid, and RANS simulations with well-resolved meshes provide reliable ground truth. Our dual-mesh approach generates abundant training data for these conditions efficiently.
-
-    \item \textbf{Separated flow regions} ($\tau_w \leq 0$, strong adverse pressure gradients): The assumptions underlying both traditional wall functions and RANS closures become questionable. DNS or carefully validated experimental data provide the only reliable ground truth for these challenging conditions.
-
-    \item \textbf{Transitional regions} (near separation and reattachment): These present the greatest modeling challenge, as flow physics are neither fully attached nor fully separated. Benchmark data from the backward-facing step, periodic hills, and diffuser cases specifically capture these critical transitional behaviors.
-\end{itemize}
-
-\subsection{Practical Data Source Comparison}
-\label{sec:ch3_source_comparison}
-
-Table~\ref{tab:data_sources_comparison} summarizes the practical trade-offs between data sources:
-
-\begin{table}[H]
-\centering
-\caption{Comparison of training data sources for ML wall functions.}
-\label{tab:data_sources_comparison}
-\begin{tabular}{p{3.5cm}p{5cm}p{5cm}}
-\toprule
-\textbf{Aspect} & \textbf{RANS (This Work)} & \textbf{DNS/Experimental} \\
-\midrule
-Computational cost & Low (minutes per case) & High (weeks for DNS) \\
-Parameter coverage & Extensive (244 configurations) & Limited (fixed conditions) \\
-Geometry flexibility & Any parameterized geometry & Fixed benchmark geometries \\
-Fidelity in attached flow & Good (validated against DNS) & Excellent (ground truth) \\
-Fidelity in separated flow & Questionable (RANS limitations) & Excellent (ground truth) \\
-Wall function assumptions & Embedded in fine mesh solution & None (wall-resolved) \\
-Boundary condition control & Full control & Fixed by experiment \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\subsection{Combined Training Strategy}
-\label{sec:ch3_combined_strategy}
-
-Based on the above analysis, we employ a combined training strategy:
-
-\begin{enumerate}
-    \item \textbf{Primary training data}: The RANS-generated dataset (25,485 samples) provides comprehensive coverage of attached and mildly separated flows across diverse geometries and Reynolds numbers.
-
-    \item \textbf{Separation augmentation}: Benchmark data from backward-facing step, periodic hills, and asymmetric diffuser cases augment training in separated flow regions where RANS accuracy is limited.
-
-    \item \textbf{Transfer learning}: Models pre-trained on RANS data can be fine-tuned on benchmark data to improve separation prediction while retaining attached flow accuracy.
-
-    \item \textbf{Physics-informed constraints}: The Reynolds analogy relationship between momentum ($C_f$) and heat transfer (St) provides additional constraints that hold across data sources, enabling consistent multi-task learning.
-\end{enumerate}
-
-This hybrid approach leverages the strengths of each data source: RANS provides breadth of parameter coverage, while DNS and experimental benchmarks provide depth in challenging flow regimes. The subsequent chapters will demonstrate how this combined dataset enables neural networks to generalize across the full range of wall-bounded turbulent flows.
-
 \section{Chapter Summary}
 \label{sec:ch3_summary}
 
-This chapter has presented the comprehensive methodology for generating structured training data for machine learning wall functions. The key contributions and findings are:
+This chapter has presented the methodology for generating structured training data for machine learning wall functions. The dual-mesh approach pairs fine mesh simulations ($y^+ < 2$) that provide ground truth wall shear stress and heat flux with coarse mesh simulations ($y^+ \approx 5$--$10$) that provide the input features available during inference. The dataset spans 244 geometry configurations---including diffusers with adverse pressure gradients, nozzles with favorable pressure gradients, and baseline channel flows---covering Reynolds numbers from 8,000 to 24,000.
 
-\begin{enumerate}
-    \item \textbf{Dual-mesh methodology}: A systematic approach pairing fine mesh ($y^+ < 2$) ground truth with coarse mesh ($y^+ \approx 5$--$10$) input features enables supervised learning of wall quantities without requiring expensive DNS data.
+Grid independence studies and validation against DNS and experimental benchmarks confirm that the fine mesh simulations provide reliable ground truth in attached flow regions, with less than 2\% deviation from DNS in channel flow and within 5\% of heat transfer correlations. However, RANS simulations consistently fail to match experimental skin friction distributions in separated regions, motivating the incorporation of high-fidelity benchmark data from backward-facing step, wall-mounted hump, and periodic hills experiments.
 
-    \item \textbf{Comprehensive geometry coverage}: The dataset spans 244 configurations including diffusers (adverse pressure gradient), nozzles (favorable pressure gradient), and channels (zero pressure gradient), covering Reynolds numbers from 8,000 to 24,000.
+The final dataset contains 25,485 paired samples, with each sample comprising a $3 \times 5$ stencil of primitive variables (90 inputs) and corresponding wall quantities ($C_f$ and St). The stencil extraction uses wall-aligned coordinates to enable deployment on curved geometries. The dataset includes both attached flow regions where $\tau_w > 0$ and separated regions where $\tau_w < 0$, providing the diversity needed for training models that generalize across flow conditions.
 
-    \item \textbf{Validated simulation methodology}: Grid independence studies and comparison with benchmark data confirm that the fine mesh simulations provide reliable ground truth with less than 2\% discretization error.
-
-    \item \textbf{Structured stencil extraction}: The $3 \times 5$ stencil provides 90 primitive variable inputs per sample, capturing local flow context including pressure gradient effects and boundary layer structure.
-
-    \item \textbf{Complete dataset}: The final dataset contains 25,485 paired samples suitable for training neural networks to predict both velocity (through $C_f$) and thermal (through St) wall functions.
-
-    \item \textbf{Hybrid data sources strategy}: RANS-generated data provides comprehensive coverage of attached flows, while DNS and experimental benchmarks (backward-facing step, periodic hills, Buice-Eaton diffuser) augment training data for separated flow regions where RANS accuracy is limited. This region-based approach leverages the strengths of each data source.
-
-    \item \textbf{Target consistency and thermal limitations}: Benchmark skin friction data ($C_f$) is converted to wall shear stress ($\tau_w$) via the straightforward relation $\tau_w = C_f \times \frac{1}{2}\rho U_{ref}^2$, ensuring dimensional consistency with RANS-generated targets. However, most separated flow benchmarks lack heat transfer measurements, creating an asymmetry where $\tau_w$ benefits from high-fidelity augmentation while $q_w$ relies primarily on RANS data. This limitation is addressed through multi-task learning with partial targets, where shared feature representations may transfer improvements across outputs.
-\end{enumerate}
-
-The methodology presented in this chapter provides the foundation for the machine learning experiments in subsequent chapters. In Chapter~\ref{chap:baseline}, we establish baseline performance using primitive variables as network inputs. Chapter~\ref{chap:physics_features} investigates whether physics-based feature engineering can improve upon this baseline.
+In the following chapters, we develop machine learning models that learn from this data. Chapter~\ref{chap:baseline} establishes baseline performance using primitive variables as network inputs, while subsequent chapters investigate physics-informed approaches to improve generalization and accuracy.
 
 \end{document}
