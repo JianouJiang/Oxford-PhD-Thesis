@@ -159,18 +159,18 @@ def generate_hybrid_architecture():
     learned_color = '#fff3b0'    # Yellow
     output_color = '#f1a7a7'     # Light red
     
-    # Input layer (6 primitives)
-    input_labels = [r'$y^+$', r'$u^+$', r'$v^+$', r'$\partial p/\partial x$', 
+    # Input layer (6 basic normalized variables)
+    input_labels = [r'$y^+$', r'$u^+$', r'$v^+$', r'$\partial p/\partial x$',
                    r'$\partial p/\partial y$', r'$y_T^+$']
     input_x = 1.5
     input_ys = np.linspace(2, 8, 6)
-    
+
     for i, (y, label) in enumerate(zip(input_ys, input_labels)):
         circle = Circle((input_x, y), 0.35, facecolor=input_color, edgecolor='black', linewidth=1.5)
         ax.add_patch(circle)
         ax.text(input_x, y, label, ha='center', va='center', fontsize=9)
-    
-    ax.text(input_x, 9, 'Input Layer\n(6 primitives)', ha='center', va='bottom', fontsize=11, fontweight='bold')
+
+    ax.text(input_x, 9, 'Input Layer\n(6 basic variables)', ha='center', va='bottom', fontsize=11, fontweight='bold')
     
     # Hidden layer - Physics neurons (top) and Learned neurons (bottom)
     hidden_x = 6
@@ -227,7 +227,7 @@ def generate_hybrid_architecture():
     
     # Legend
     legend_elements = [
-        mpatches.Patch(facecolor=input_color, edgecolor='black', label='Input (primitives)'),
+        mpatches.Patch(facecolor=input_color, edgecolor='black', label='Input (basic variables)'),
         mpatches.Patch(facecolor=physics_color, edgecolor='black', label='Physics neurons (explicit)'),
         mpatches.Patch(facecolor=learned_color, edgecolor='black', label='Learned neurons (trained)'),
         mpatches.Patch(facecolor=output_color, edgecolor='black', label='Output (wall quantities)'),

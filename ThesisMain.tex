@@ -6,8 +6,12 @@
 \documentclass[Thesis,digital]{OxReport}
 % \externaldocument[M-]{ThesisMain}
 \addbibresource{\subfix{./Bibliography/IEEEexample.bib}}
-\addbibresource{\subfix{./Bibliography/references.bib}} 
+\addbibresource{\subfix{./Bibliography/references.bib}}
 \graphicspath{{Images}}%
+% Suppress paragraph and subsubsection numbering to avoid ().1 format issues
+\setcounter{secnumdepth}{2}
+% Also reset paragraph counter format
+\renewcommand{\theparagraph}{}
 % \graphicspath{{img/LowRes/Dammann}{img/LowRes/Hologram}{img/LowRes/Title}}%
 % \graphicspath{{img/HighRes/Dammann}{img/HighRes/Hologram}{img/HighRes/Title}}%
 

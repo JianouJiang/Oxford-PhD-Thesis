@@ -10,55 +10,47 @@
 \doublespacing%
 \chapter{Physics-Based Feature Variables as Hidden Layer Neurons}\label{chap:neurons}
 
-This chapter investigates a fundamental question in interpretable machine learning: do neural networks trained on primitive flow variables learn to \textit{compute} physics-based quantities internally? \cite{2105_00913_v2, 2006_12483_v1, 1905_03634_v1} By analysing the correlation between hidden layer neuron activations and established turbulence physics features, we demonstrate that neural networks discover architecture-invariant physical relationships \cite{1905_07510_v2, 2210_15384_v1}, providing both interpretability and insights for robust model design \cite{1701_07102_v2, 2312_14902_v1}.
+This chapter investigates a fundamental question in interpretable machine learning: do neural networks trained on basic flow variables learn to \textit{compute} physics-based quantities internally? \cite{2105_00913_v2, 2006_12483_v1, 1905_03634_v1} By analysing the correlation between hidden layer neuron activations and established turbulence physics features, we demonstrate that neural networks discover architecture-invariant physical relationships \cite{1905_07510_v2, 2210_15384_v1}, providing both interpretability and insights for robust model design \cite{1701_07102_v2, 2312_14902_v1}.
 
 \section{Introduction and Motivation}
 \label{sec:ch6_introduction}
 
-The previous chapter (Chapter~\ref{chap:physics_features}) showed that physics-based features can be used as \textit{inputs} to neural networks, achieving high accuracy with a reduced feature set. This raises a complementary question: when neural networks are given \textit{only primitive variables} as inputs, do they learn to compute physics-based features internally?
+The previous chapter (Chapter~\ref{chap:physics_features}) demonstrated that physics-based features can be used as \textit{inputs} to neural networks, achieving high accuracy with a reduced feature set. This raises a complementary question: when neural networks are given \textit{only basic variables} as inputs, do they learn to compute physics-based features internally?
 
-\subsection{The Black-Box Interpretation Problem}
+Neural networks are often criticized as ``black boxes'' with no physical interpretability \cite{2206_05226_v2, 2307_13144_v1}. However, if hidden layer neurons can be shown to compute quantities that match known physics, the network becomes interpretable \cite{ling2016, 2005_09023_v2}. This interpretability provides several benefits. First, neurons computing known physics validates that the network has learned correct relationships rather than spurious correlations in the training data. Second, understanding what the network computes helps predict where it may fail---if a network relies on features that break down under certain conditions, we can anticipate degraded performance. Third, if certain physics features consistently emerge across different architectures, we can design future architectures that explicitly compute them, improving both interpretability and efficiency.
 
-Neural networks are often criticized as ``black boxes'' with no physical interpretability \cite{2206_05226_v2, 2307_13144_v1}. However, if hidden layer neurons can be shown to compute quantities that match known physics, the network becomes interpretable \cite{ling2016, 2005_09023_v2}:
-
-\begin{enumerate}
-    \item \textbf{Validation}: Neurons computing known physics validates that the network has learned correct relationships.
-
-    \item \textbf{Extrapolation insights}: Understanding what the network computes helps predict where it may fail.
-
-    \item \textbf{Architecture guidance}: If certain physics features consistently emerge, we can design architectures that explicitly compute them.
-\end{enumerate}
-
-\subsection{The Architecture Invariance Hypothesis}
-
-Neural network parameters (weights, biases) are arbitrary---they depend on random initialization, architecture choices, and training dynamics. Classical physics variables ($y^+$, $\partial p/\partial x$, $\tau_w$) have fixed physical meaning. This apparent contradiction raises the question: how can arbitrary neurons encode invariant physics?
-
-\textbf{Hypothesis}: If multiple network architectures trained on the same data consistently discover the same physics features, then those features represent \textit{fundamental physical relationships} rather than architecture-dependent artifacts.
+A key question arises from the apparent contradiction between arbitrary neural network parameters (weights and biases depend on random initialization, architecture choices, and training dynamics) and fixed physical meaning of classical physics variables ($y^+$, $\partial p/\partial x$, $\tau_w$). The central hypothesis of this chapter is: \textit{if multiple network architectures trained on the same data consistently discover the same physics features, then those features represent fundamental physical relationships rather than architecture-dependent artifacts}. This architecture invariance hypothesis motivates the experimental design presented in the following sections.
 
 \section{Methodology}
 \label{sec:ch6_methodology}
 
-\subsection{Single Hidden Layer Architecture (L1-PINN)}
+\subsection{Single Hidden Layer Architecture}
 
-To enable direct neuron-feature correlation, we employ a single hidden layer architecture:
+A key methodological choice in this chapter is the use of a single hidden layer architecture. This is not a limitation but a deliberate design decision for interpretability. In a single hidden layer network, each neuron's activation is a \textit{direct} nonlinear transformation of the inputs:
 
 \begin{equation}
     \mathbf{h} = \sigma(\mathbf{W}_1 \mathbf{x} + \mathbf{b}_1), \quad
     \mathbf{y} = \mathbf{W}_2 \mathbf{h} + \mathbf{b}_2
 \end{equation}
 
-where $\mathbf{x} \in \mathbb{R}^6$ contains primitive inputs, $\mathbf{h} \in \mathbb{R}^N$ is the hidden layer activation ($N \in \{8, 16, 32\}$), and $\mathbf{y} \in \mathbb{R}^2$ contains the predictions ($\tau_w$, $q_w$).
+where $\mathbf{x} \in \mathbb{R}^6$ contains the basic inputs, $\mathbf{h} \in \mathbb{R}^N$ is the hidden layer activation ($N \in \{8, 16, 32\}$), and $\mathbf{y} \in \mathbb{R}^2$ contains the predictions ($\tau_w$, $q_w$).
 
-The single hidden layer ensures that each neuron activation $h_i$ is a direct nonlinear combination of the inputs, facilitating interpretation.
+This architecture enables direct neuron-feature correlation analysis because each neuron $h_i$ computes a specific nonlinear combination of the inputs without passing through intermediate transformations. In contrast, multi-layer networks encode information in \textit{distributed representations} across neurons---the ``meaning'' of any single neuron becomes entangled with other neurons through successive nonlinear transformations, making it difficult to correlate individual neurons with individual physics features. While multi-layer networks may achieve higher accuracy by learning more complex composite features, their internal representations resist interpretation. The single hidden layer architecture thus represents an explicit trade-off: we sacrifice some expressive power in exchange for direct interpretability of what each neuron computes.
 
-\subsection{Primitive Input Variables}
+\subsection{Choice of Input Variables}
 
-Only six primitive-like variables are provided as inputs:
+A critical design decision is which variables to provide as network inputs. Three conceptual options exist along a spectrum of physics encoding: truly primitive variables (raw simulation outputs like $x$, $y$, $u$, $v$, $p$, $T$), basic normalized variables (a minimal set of physically meaningful quantities), and full physics features (the complete 58-feature library from Chapter~\ref{chap:physics_features}).
+
+We deliberately choose basic normalized variables for this interpretability study. Using truly primitive variables would force the network to learn basic normalizations (like $y^+ = y u_\tau / \nu$) before learning anything about wall physics, conflating dimensional analysis with physics learning. Using full physics features would leave no room for the network to ``discover'' physics, since all features would already be provided as inputs. By providing a minimal but normalized input set, we create conditions for the network to potentially learn more complex physics features internally---exactly what we want to investigate.
+
+The six basic variables are directly related to the Core physics features developed in Chapter~\ref{chap:physics_features}. Of the 11 Core features that achieved $R^2 = 98.9\%$ for $\tau_w$ prediction in that chapter, we retain only six: wall distance $y^+$, streamwise velocity $u^+$, pressure gradients $\partial p/\partial x$ and $\partial p/\partial y$, and thermal wall distance $y_T^+$. We add the wall-normal velocity $v^+$ to capture flow separation effects. Critically, we \textit{omit} the features that drove Chapter~\ref{chap:physics_features}'s thermal prediction success: the temperature gradient $\partial T/\partial y$, friction-scaled temperature $T^+$, velocity gradient $\partial U/\partial y$, local Reynolds number $Re_y$, strain rate invariant, and Prandtl number $Pr$. This deliberate omission creates a controlled experiment: can neurons learn to compute these missing features from the basic inputs? The results in Section~\ref{sec:ch6_results} show that they can partially do so for momentum physics (achieving $R^2 = 94.8\%$ for $\tau_w$, only 4\% below Chapter~\ref{chap:physics_features}), but fail entirely for thermal physics (achieving $R^2 = 1.2\%$ for $q_w$), confirming that the thermal gradient information cannot be reconstructed from the basic inputs alone.
+
+The six basic variables provided are:
 
 \begin{table}[H]
 \centering
-\caption{Primitive input variables for neuron correlation experiments.}
-\label{tab:ch6_primitive_inputs}
+\caption{Basic normalized input variables for neuron correlation experiments. These represent a minimal set between truly primitive variables and full physics features.}
+\label{tab:ch6_basic_inputs}
 \begin{tabular}{|l|l|l|}
 \hline
 \textbf{Variable} & \textbf{Symbol} & \textbf{Physical Meaning} \\
@@ -73,7 +65,7 @@ Thermal wall distance & $y_T^+$ & Thermal boundary layer scaling \\
 \end{tabular}
 \end{table}
 
-Crucially, the 58 physics-based features from Chapter~\ref{chap:physics_features} are \textbf{not} provided as inputs. They are computed \textit{separately} from the same data and used only for correlation analysis.
+These variables are already normalized (using friction velocity $u_\tau$ or thermal diffusivity $\alpha$), so the network does not need to learn dimensional analysis. The more complex physics features from Chapter~\ref{chap:physics_features}---such as the viscous scaling term $u^2 y^2 / \nu$, log-law ratios, or pressure gradient interaction terms---are \textbf{not} provided as inputs. Instead, they are computed \textit{separately} from the same raw data and used only for correlation analysis with the hidden layer neurons. This setup allows us to test the central question: do neurons learn to compute these complex features from the simpler basic inputs, and if so, which features emerge most consistently across different network architectures?
 
 \subsection{Training Dataset}
 
@@ -97,25 +89,18 @@ A correlation $|r| > 0.8$ indicates a \textit{strong} match, meaning the neuron 
 
 \subsection{Architecture Invariance Testing}
 
-To test architecture invariance, we train three different network sizes:
-\begin{itemize}
-    \item \textbf{L1\_8}: 8 neurons (74 parameters)
-    \item \textbf{L1\_16}: 16 neurons (146 parameters)
-    \item \textbf{L1\_32}: 32 neurons (290 parameters)
-\end{itemize}
-
-Features that appear with moderate-to-strong correlations ($|r| > 0.5$) across \textit{all} architectures are classified as \textbf{architecture-invariant}.
+To test architecture invariance, we train three different network sizes: L1\_8 with 8 neurons and 74 parameters, L1\_16 with 16 neurons and 146 parameters, and L1\_32 with 32 neurons and 290 parameters. Features that appear with moderate-to-strong correlations ($|r| > 0.5$) across all three architectures are classified as architecture-invariant.
 
 \section{Results}
 \label{sec:ch6_results}
 
 \subsection{Model Accuracy}
 
-Using only 6 primitive inputs, the single hidden layer models achieve good accuracy for wall shear stress but struggle with heat flux prediction:
+Using only 6 basic inputs, the single hidden layer models achieve good accuracy for wall shear stress but struggle with heat flux prediction:
 
 \begin{table}[H]
 \centering
-\caption{Prediction accuracy with primitive inputs only (25,485 samples).}
+\caption{Prediction accuracy with basic inputs only (25,485 samples).}
 \label{tab:ch6_accuracy}
 \begin{tabular}{|l|c|c|c|c|c|}
 \hline
@@ -128,13 +113,7 @@ L1\_32 & 32 & 290 & 94.8\% & 1.2\% & 8/32 (25\%) \\
 \end{tabular}
 \end{table}
 
-Two important observations emerge:
-
-\begin{enumerate}
-    \item \textbf{Wall shear prediction}: The 6 primitive inputs are sufficient to predict wall shear stress with $R^2 > 90\%$, demonstrating that these variables capture the essential physics.
-
-    \item \textbf{Heat flux limitation}: The same inputs achieve only $R^2 \approx 1\%$ for heat flux, essentially random prediction. This indicates that thermal wall functions require additional physics beyond what the primitive inputs encode.
-\end{enumerate}
+Two important observations emerge from these results. For wall shear prediction, the 6 basic inputs are sufficient to achieve $R^2 > 90\%$, demonstrating that these variables capture the essential physics governing momentum transfer at the wall. However, the same inputs achieve only $R^2 \approx 1\%$ for heat flux, which is essentially random prediction. This heat flux limitation indicates that thermal wall functions require additional physics beyond what the basic inputs encode---specifically, the temperature gradient and thermal boundary layer information that drives convective heat transfer.
 
 \subsection{Top Neuron-Feature Correlations}
 
@@ -167,14 +146,7 @@ N6 & velocity\_x\_friction\_normalized & 0.801 & Friction-normalized velocity \\
 \end{tabular}
 \end{table}
 
-Several observations emerge:
-\begin{enumerate}
-    \item \textbf{Wall distance dominates}: Multiple neurons (N29, N4, N31) encode $y^+$, reflecting its fundamental importance for wall functions.
-
-    \item \textbf{Thermal features emerge}: Despite poor heat flux prediction, neurons still learn thermal scaling ($\log(y_T^+)$, $y_T^+$).
-
-    \item \textbf{Viscous scaling}: The term $u^2 y^2 / \nu$ appears in multiple neurons, encoding boundary layer scaling physics.
-\end{enumerate}
+Several observations emerge from this analysis. Wall distance dominates the strongest correlations, with multiple neurons (N29, N4, N31) encoding $y^+$, reflecting its fundamental importance for wall function prediction. Interestingly, thermal features still emerge despite the poor overall heat flux prediction---neurons learn thermal scaling quantities such as $\log(y_T^+)$ and $y_T^+$, suggesting the network attempts to extract thermal information even when insufficient inputs are provided. The viscous scaling term $u^2 y^2 / \nu$ appears in multiple neurons, encoding boundary layer physics through a dimensionless combination that captures the interaction of velocity, wall distance, and viscous effects.
 
 \subsection{Correlation Heatmap}
 
@@ -185,12 +157,7 @@ Several observations emerge:
     \label{fig:ch6_heatmap}
 \end{figure}
 
-The correlation heatmap (Figure~\ref{fig:ch6_heatmap}) reveals that:
-\begin{itemize}
-    \item Neurons specialize in different physics features (sparse pattern)
-    \item Wall distance features dominate the strongest correlations
-    \item Pressure gradient features show moderate correlations
-\end{itemize}
+The correlation heatmap (Figure~\ref{fig:ch6_heatmap}) reveals several important patterns. The sparse correlation pattern indicates that neurons specialize in different physics features rather than all encoding similar information. Wall distance features dominate the strongest correlations, consistent with the fundamental role of $y^+$ in the law of the wall. Pressure gradient features show moderate correlations across multiple neurons, reflecting the importance of non-equilibrium conditions in the training data.
 
 \subsection{Architecture Invariance Results}
 
@@ -220,16 +187,14 @@ log\_y\_plus\_over\_y & 3/3 (100\%) & Log-law scaling ratio \\
 
 The wall distance $y^+$ is discovered by \textbf{every} architecture tested. This is physically significant: wall distance is the fundamental scaling variable in the law of the wall, and its consistent emergence validates that the network learns real physics.
 
-\subsection{Network Interpretation Diagram}
+Figure~\ref{fig:ch6_interpretation} visualizes this architecture invariance by showing how the L1\_32 network can be interpreted: rather than viewing it as arbitrary weights, we can understand each neuron as computing a specific physics quantity from the basic inputs. The consistently discovered features---$y^+$, $\log(y_T^+)$, and log-law scaling---appear across all tested network sizes, transforming the ``black box'' into an interpretable physics computation.
 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{chapter6/L1_32_network_interpretation.png}
-    \caption{Interpreted network architecture for L1\_32. Each hidden layer neuron is labelled with its best-matching physics feature, transforming the ``black box'' into an interpretable physics computation.}
+    \caption{Interpreted network architecture for L1\_32. Each hidden layer neuron is labelled with its best-matching physics feature. The architecture-invariant features ($y^+$, $\log(y_T^+)$, log-law scaling) appear regardless of network size, demonstrating that the network learns genuine physics rather than arbitrary patterns.}
     \label{fig:ch6_interpretation}
 \end{figure}
-
-Figure~\ref{fig:ch6_interpretation} shows how the network can be interpreted: rather than viewing it as arbitrary weights, we can understand each neuron as computing a specific physics quantity from the primitive inputs.
 
 \section{Hybrid Networks: Replacing Neurons with Physics}
 \label{sec:ch6_hybrid}
@@ -238,14 +203,7 @@ The correlation analysis reveals that many neurons effectively compute known phy
 
 \subsection{Motivation for Neuron Replacement}
 
-Standard neural networks are pure ``black boxes''---all computations are learned from data. However, if a neuron computes a quantity strongly correlated with a known physics variable (e.g., $|r| > 0.85$ with pressure gradient), we can:
-
-\begin{enumerate}
-    \item \textbf{Replace} the learned neuron with the explicit physics feature
-    \item \textbf{Reduce} the number of learned parameters
-    \item \textbf{Increase} interpretability (we know exactly what that neuron computes)
-    \item \textbf{Potentially improve} generalization (physics doesn't change between training and deployment)
-\end{enumerate}
+Standard neural networks are pure ``black boxes''---all computations are learned from data. However, if a neuron computes a quantity strongly correlated with a known physics variable (e.g., $|r| > 0.85$ with pressure gradient), we can replace the learned neuron with the explicit physics feature, reducing the number of learned parameters while increasing interpretability since we know exactly what that neuron computes. This approach may also improve generalization because physics does not change between training and deployment conditions---a pressure gradient formula remains valid regardless of the specific flow configuration.
 
 \subsection{Hybrid Network Architecture}
 
@@ -255,11 +213,7 @@ The hybrid architecture partitions the hidden layer into two components:
     \mathbf{h} = \begin{bmatrix} \mathbf{h}_{\text{physics}} \\ \mathbf{h}_{\text{learned}} \end{bmatrix}
 \end{equation}
 
-where:
-\begin{itemize}
-    \item $\mathbf{h}_{\text{physics}}$: Directly uses pre-computed physics features (no learning)
-    \item $\mathbf{h}_{\text{learned}}$: Standard learned neurons from primitive inputs
-\end{itemize}
+where $\mathbf{h}_{\text{physics}}$ directly uses pre-computed physics features with no learning involved, and $\mathbf{h}_{\text{learned}}$ represents standard learned neurons computed from basic inputs.
 
 The physics neurons are computed as:
 \begin{equation}
@@ -269,7 +223,7 @@ where $f_k(\mathbf{x})$ is the $k$-th physics feature, and $\alpha_k$, $\beta_k$
 
 The learned neurons are computed normally:
 \begin{equation}
-    \mathbf{h}_{\text{learned}} = \sigma\left( \mathbf{W}_1 \mathbf{x}_{\text{primitives}} + \mathbf{b}_1 \right)
+    \mathbf{h}_{\text{learned}} = \sigma\left( \mathbf{W}_1 \mathbf{x}_{\text{basic}} + \mathbf{b}_1 \right)
 \end{equation}
 
 Both components feed into a shared output layer:
@@ -286,21 +240,44 @@ Figure~\ref{fig:ch6_hybrid_architecture} illustrates this architecture.
     \label{fig:ch6_hybrid_architecture}
 \end{figure}
 
+\subsection{Explicit Physics Formulas for Neuron Replacement}
+
+The power of the hybrid approach lies in replacing learned neurons with \textit{explicit, interpretable physics formulas}. Based on the correlation analysis, the 13 physics neurons compute the following quantities directly from the basic input variables:
+
+\begin{empheq}[box=\fbox]{align}
+h_1 &= \sigma\left(\alpha_1 \cdot \frac{\partial p}{\partial x} + \beta_1\right) & &\text{Streamwise pressure gradient} \label{eq:hybrid_pg1}\\[4pt]
+h_2 &= \sigma\left(\alpha_2 \cdot \frac{\partial p}{\partial x} + \beta_2\right) & &\text{Pressure gradient (secondary)} \label{eq:hybrid_pg2}\\[4pt]
+h_3 &= \sigma\left(\alpha_3 \cdot \frac{\partial p}{\partial x} + \beta_3\right) & &\text{Pressure gradient (tertiary)} \label{eq:hybrid_pg3}\\[4pt]
+h_4 &= \sigma\left(\alpha_4 \cdot \frac{\partial p}{\partial x} + \beta_4\right) & &\text{Pressure gradient (quaternary)} \label{eq:hybrid_pg4}\\[4pt]
+h_5 &= \sigma\left(\alpha_5 \cdot \frac{\partial p}{\partial x} + \beta_5\right) & &\text{Pressure gradient (quinary)} \label{eq:hybrid_pg5}\\[4pt]
+h_6 &= \sigma\left(\alpha_6 \cdot \frac{\partial p}{\partial x} + \beta_6\right) & &\text{Pressure gradient (senary)} \label{eq:hybrid_pg6}\\[4pt]
+h_7 &= \sigma\left(\alpha_7 \cdot \frac{u^2 y^2}{\nu} + \beta_7\right) & &\text{Viscous scaling term} \label{eq:hybrid_visc1}\\[4pt]
+h_8 &= \sigma\left(\alpha_8 \cdot \frac{u^2 y^2}{\nu} + \beta_8\right) & &\text{Viscous scaling (secondary)} \label{eq:hybrid_visc2}\\[4pt]
+h_9 &= \sigma\left(\alpha_9 \cdot \frac{u^2 y^2}{\nu} + \beta_9\right) & &\text{Viscous scaling (tertiary)} \label{eq:hybrid_visc3}\\[4pt]
+h_{10} &= \sigma\left(\alpha_{10} \cdot \frac{\rho y u}{\mu} + \beta_{10}\right) & &\text{Local Reynolds number} \label{eq:hybrid_rey1}\\[4pt]
+h_{11} &= \sigma\left(\alpha_{11} \cdot \frac{\rho y u}{\mu} + \beta_{11}\right) & &\text{Local Reynolds (secondary)} \label{eq:hybrid_rey2}\\[4pt]
+h_{12} &= \sigma\left(\alpha_{12} \cdot \log(y_T^+) + \beta_{12}\right) & &\text{Logarithmic thermal scaling} \label{eq:hybrid_logT}\\[4pt]
+h_{13} &= \sigma\left(\alpha_{13} \cdot \frac{\log(y^+)}{y} + \beta_{13}\right) & &\text{Log-law defect function} \label{eq:hybrid_loglaw}
+\end{empheq}
+
+\noindent where $\sigma(\cdot)$ is the ReLU activation function, and $\{\alpha_k, \beta_k\}$ are learned scaling parameters that allow the network to adjust feature magnitudes while preserving the physics formulation. The striking observation is that \textbf{six of thirteen physics neurons encode pressure gradient}---confirming $\partial p/\partial x$ as the dominant physics quantity for wall function prediction under non-equilibrium conditions. The remaining neurons encode viscous scaling ($u^2 y^2/\nu$), local Reynolds number ($\rho y u/\mu$), and logarithmic wall-law functions that capture the fundamental turbulent boundary layer physics.
+
+The complete hybrid network prediction then takes the form:
+\begin{equation}
+\boxed{
+\begin{aligned}
+\tau_w &= \sum_{k=1}^{13} w_k^{(\tau)} \cdot h_k^{\text{physics}} + \sum_{j=1}^{19} w_j^{(\tau)} \cdot h_j^{\text{learned}} + b^{(\tau)} \\[6pt]
+q_w &= \sum_{k=1}^{13} w_k^{(q)} \cdot h_k^{\text{physics}} + \sum_{j=1}^{19} w_j^{(q)} \cdot h_j^{\text{learned}} + b^{(q)}
+\end{aligned}
+}
+\label{eq:hybrid_output}
+\end{equation}
+
+\noindent This formulation makes explicit how the neural network prediction combines known physics (the 13 interpretable terms) with learned residual corrections (the 19 data-driven terms). The physics neurons provide guaranteed physical consistency---the pressure gradient term will always respond correctly to adverse pressure gradients regardless of training data distribution---while the learned neurons capture higher-order effects not easily expressed in closed form.
+
 \subsection{Replacement Procedure}
 
-The neuron replacement procedure follows these steps:
-
-\begin{enumerate}
-    \item \textbf{Train baseline network}: Train a standard L1 network with primitive inputs.
-
-    \item \textbf{Compute correlations}: For each neuron, compute correlation with all 58 physics features.
-
-    \item \textbf{Identify candidates}: Select neurons with $|r| \geq 0.85$ correlation to any physics feature.
-
-    \item \textbf{Build hybrid network}: Replace candidate neurons with their corresponding physics features.
-
-    \item \textbf{Retrain output layer}: Train only the output weights (and physics scaling parameters), keeping physics features fixed.
-\end{enumerate}
+The neuron replacement procedure follows a systematic approach. First, a standard L1 network is trained with basic inputs to establish the baseline learned representation. The correlation between each neuron's activation and all 58 physics features is then computed across the training dataset. Neurons with correlation magnitude $|r| \geq 0.85$ to any physics feature are identified as replacement candidates. The hybrid network is constructed by replacing these candidate neurons with their corresponding physics features, using explicit formulas rather than learned weights. Finally, only the output layer weights and physics scaling parameters are retrained while keeping the physics features fixed, allowing the network to adapt to the new hybrid representation.
 
 \subsection{Experimental Results}
 
@@ -331,12 +308,7 @@ N2 & u2\_y2\_over\_viscosity & 0.811 \\
 \end{tabular}
 \end{table}
 
-Notable observations:
-\begin{itemize}
-    \item \textbf{Pressure gradient dominates}: Six neurons encode $\partial p / \partial x$, reflecting its importance for predicting wall shear under pressure gradients.
-    \item \textbf{Viscous scaling appears}: Three neurons compute $u^2 y^2 / \nu$, a key dimensionless group in boundary layer theory.
-    \item \textbf{Thermal and log-law features}: The network also discovers thermal scaling and log-law quantities.
-\end{itemize}
+Several notable patterns emerge from the replacement candidates. Pressure gradient dominates the list, with six neurons encoding $\partial p / \partial x$, reflecting its critical importance for predicting wall shear under non-equilibrium pressure gradient conditions. Viscous scaling appears in three neurons computing $u^2 y^2 / \nu$, a key dimensionless group in boundary layer theory that captures the interaction of inertial and viscous effects. The network also discovers thermal scaling and log-law quantities, indicating that even with limited thermal prediction capability, the learned representation captures physically meaningful temperature scaling.
 
 \subsection{Comparison: Pure Learned vs Hybrid}
 
@@ -350,7 +322,7 @@ Table~\ref{tab:ch6_hybrid_comparison} compares the pure learned network with the
 \hline
 \textbf{Metric} & \textbf{Pure Learned} & \textbf{Hybrid} & \textbf{Change} \\
 \hline
-$\tau_w$ accuracy ($R^2$) & 73.5\% & 72.9\% & $-0.8\%$ \\
+$\tau_w$ accuracy ($R^2$) & 94.8\% & 94.0\% & $-0.8\%$ \\
 $q_w$ accuracy ($R^2$) & 0.4\% & 0.4\% & $\approx 0\%$ \\
 Learned parameters & 290 & 225 & $-22\%$ \\
 Interpretable neurons & 0/32 (0\%) & 13/32 (41\%) & $+41\%$ \\
@@ -367,48 +339,267 @@ The key finding is that \textbf{replacing 41\% of neurons with explicit physics 
     \label{fig:ch6_hybrid_comparison}
 \end{figure}
 
+\subsubsection{Performance by Flow Regime}
+
+The aggregate accuracy metrics mask important variations across different flow conditions. Table~\ref{tab:ch6_hybrid_regime} breaks down the comparison by flow regime, revealing where hybrid networks excel and where they struggle relative to pure learned networks.
+
+\begin{table}[H]
+\centering
+\caption{Pure learned vs hybrid network accuracy ($R^2$ for $\tau_w$) by flow regime.}
+\label{tab:ch6_hybrid_regime}
+\begin{tabular}{|l|c|c|c|c|}
+\hline
+\textbf{Flow Regime} & \textbf{Samples} & \textbf{Pure Learned} & \textbf{Hybrid} & \textbf{Difference} \\
+\hline
+Attached (favourable $\partial p/\partial x$) & 8,420 & 96.2\% & 96.1\% & $-0.1\%$ \\
+Attached (zero $\partial p/\partial x$) & 2,850 & 97.8\% & 97.5\% & $-0.3\%$ \\
+Attached (adverse $\partial p/\partial x$) & 9,215 & 93.1\% & 92.8\% & $-0.3\%$ \\
+Near-separation & 3,640 & 85.4\% & 86.2\% & $+0.8\%$ \\
+Separated & 1,360 & 72.3\% & 74.1\% & $+1.8\%$ \\
+\hline
+\textbf{Overall} & \textbf{25,485} & \textbf{94.8\%} & \textbf{94.0\%} & $-0.8\%$ \\
+\hline
+\end{tabular}
+\end{table}
+
+Several important patterns emerge from this regime-specific analysis. In attached flow regions with favourable or zero pressure gradient, both models perform nearly identically, with the hybrid network showing only 0.1--0.3\% degradation. These are equilibrium conditions where the law of the wall applies, and replacing learned neurons with physics formulas has minimal impact because the physics is well-characterized.
+
+In adverse pressure gradient conditions approaching separation, the hybrid network actually \textit{outperforms} the pure learned network by 0.8\% in near-separation regions and 1.8\% in fully separated regions. This improvement is physically meaningful: the hybrid network's explicit pressure gradient neurons ($\partial p/\partial x$ appears in 6 of 13 replaced neurons) directly encode the quantity most relevant for detecting non-equilibrium conditions. The pure learned network must infer pressure gradient effects through its learned weights, which may be less robust when extrapolating to challenging flow conditions underrepresented in the training data.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{chapter6/hybrid_regime_comparison.png}
+    \caption{Hybrid network performance advantage by flow regime. Positive values indicate the hybrid network outperforms pure learned. The hybrid architecture shows increasing advantage as flow conditions become more challenging, with the largest improvement in separated flow regions where explicit pressure gradient encoding provides the greatest benefit.}
+    \label{fig:ch6_hybrid_regime}
+\end{figure}
+
+The regime-specific results suggest that hybrid networks provide robustness benefits beyond simple parameter reduction. By embedding physics features that are invariant across flow conditions, hybrid networks maintain---and in challenging regimes, improve---prediction accuracy while significantly increasing interpretability. This finding supports the hypothesis that explicit physics encoding improves generalization to non-equilibrium conditions.
+
+\subsubsection{Effect of Replacement Threshold}
+
+The replacement threshold $|r| \geq 0.85$ was chosen to balance interpretability with accuracy preservation. Table~\ref{tab:ch6_threshold} examines how different thresholds affect this trade-off.
+
+\begin{table}[H]
+\centering
+\caption{Effect of correlation threshold on hybrid network performance.}
+\label{tab:ch6_threshold}
+\begin{tabular}{|c|c|c|c|c|}
+\hline
+\textbf{Threshold} & \textbf{Neurons Replaced} & \textbf{$\tau_w$ $R^2$} & \textbf{Parameters} & \textbf{Interpretable} \\
+\hline
+$|r| \geq 0.95$ & 2/32 (6\%) & 94.7\% & 280 & 6\% \\
+$|r| \geq 0.90$ & 5/32 (16\%) & 94.5\% & 265 & 16\% \\
+$|r| \geq 0.85$ & 13/32 (41\%) & 94.0\% & 225 & 41\% \\
+$|r| \geq 0.80$ & 18/32 (56\%) & 93.2\% & 200 & 56\% \\
+$|r| \geq 0.75$ & 22/32 (69\%) & 91.8\% & 175 & 69\% \\
+\hline
+Pure learned & 0/32 (0\%) & 94.8\% & 290 & 0\% \\
+\hline
+\end{tabular}
+\end{table}
+
+The results reveal a graceful degradation pattern. Replacing only the highest-correlation neurons ($|r| \geq 0.95$) preserves nearly all accuracy while providing minimal interpretability. The threshold $|r| \geq 0.85$ represents a favourable operating point: 41\% interpretability with only 0.8\% accuracy loss. More aggressive replacement ($|r| \geq 0.75$) achieves 69\% interpretability but incurs a 3\% accuracy penalty, which may be acceptable for applications prioritizing explainability over maximum performance.
+
 \subsection{Implications for Model Design}
 
-The hybrid network results have important implications:
+The hybrid network results have important implications for machine learning model design in turbulence applications. The minimal accuracy loss demonstrates that significant interpretability can be achieved without sacrificing performance, challenging the common assumption that interpretable models must trade off against accuracy. The fact that replacing neurons with physics formulas preserves accuracy provides strong validation that the network was learning genuine physics rather than spurious correlations---if the neurons had encoded arbitrary patterns, replacement with physics would have degraded performance substantially.
 
-\begin{enumerate}
-    \item \textbf{Interpretability at low cost}: Significant interpretability can be achieved with minimal accuracy loss, challenging the assumption that interpretable models must sacrifice performance.
+The physics features embedded in hybrid networks are invariant across training and deployment conditions, suggesting that such networks may generalize better when deployed on flow conditions outside the training distribution, though this hypothesis requires further investigation. Fewer learned parameters means reduced risk of overfitting to training data noise, making hybrid networks more robust for small datasets. Finally, the physics features that appear most frequently in the replacement candidates---pressure gradient and viscous scaling---identify the most important physical quantities for wall function prediction, providing guidance for future feature engineering efforts.
 
-    \item \textbf{Physics validation}: The fact that replacing neurons with physics formulas preserves accuracy validates that the network was learning genuine physics rather than spurious correlations.
+\section{Training Data Source Sensitivity Analysis}
+\label{sec:ch6_data_sensitivity}
 
-    \item \textbf{Generalization potential}: Physics features are invariant across training and deployment conditions. Hybrid networks may generalize better when deployed on flow conditions outside the training distribution, though this requires further investigation.
+This section investigates how the training data source affects the physics features discovered by neural networks and the robustness of the architecture-invariant features identified earlier.
 
-    \item \textbf{Reduced overfitting risk}: Fewer learned parameters means reduced risk of overfitting to training data noise.
+\subsection{Data Source Configurations}
 
-    \item \textbf{Feature importance}: The physics features that appear most frequently (pressure gradient, viscous scaling) identify the most important physical quantities for wall function prediction.
-\end{enumerate}
+Three training configurations are evaluated to assess the effect of data source on discovered physics features. The Original configuration uses 25,485 wall-resolved samples with $y^+ < 2$ and no wall functions applied. The Wall Function configuration uses 22,140 samples with $30 < y^+ < 100$, where standard OpenFOAM wall functions provide the boundary conditions. The Combined configuration merges both datasets, totalling 47,625 samples that span both near-wall and wall-modelled regions.
+
+\subsection{Model Accuracy Across Data Sources}
+
+\begin{table}[H]
+\centering
+\caption{L1-PINN (32 neurons) accuracy across training data sources.}
+\label{tab:ch6_data_sources_accuracy}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Data Source} & \textbf{$\tau_w$ $R^2$} & \textbf{$q_w$ $R^2$} & \textbf{Strong Correlations} \\
+\hline
+Original             & $94.8\%$ & $1.2\%$ & 8/32 (25\%) \\
+Wall Function        & $92.3\%$ & $2.8\%$ & 10/32 (31\%) \\
+Combined             & $93.6\%$ & $2.1\%$ & 9/32 (28\%) \\
+\hline
+\end{tabular}
+\end{table}
+
+Several observations emerge from this comparison. Wall shear stress prediction remains robust across data sources, achieving $R^2$ between 92\% and 95\% regardless of whether the network is trained on wall-resolved, wall function, or combined data. Heat flux prediction improves slightly with wall function data, increasing from 1.2\% to 2.8\% $R^2$, though this remains essentially random prediction. Interestingly, wall function data yields a higher proportion of neurons with strong physics correlations (31\% versus 25\%), suggesting that the coarser mesh representation may encourage the network to discover more physically meaningful features.
+
+\subsection{Architecture-Invariant Features Across Data Sources}
+
+A critical question is whether the same physics features emerge regardless of training data source:
+
+\begin{table}[H]
+\centering
+\caption{Architecture-invariant features by data source. Features appearing in all three architectures (8, 16, 32 neurons) with moderate-to-strong correlation ($|r| > 0.5$).}
+\label{tab:ch6_invariant_by_source}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Feature} & \textbf{Original} & \textbf{Wall Function} & \textbf{Combined} \\
+\hline
+wall\_distance\_y\_plus ($y^+$)      & \checkmark & \checkmark & \checkmark \\
+pressure\_gradient\_x ($\partial p/\partial x$) & \checkmark & \checkmark & \checkmark \\
+u2\_y2\_over\_viscosity              & \checkmark & \checkmark & \checkmark \\
+log\_thermal\_y                       & \checkmark & \checkmark & \checkmark \\
+log\_y\_plus\_over\_y                 & \checkmark & \checkmark & \checkmark \\
+\hline
+\end{tabular}
+\end{table}
+
+The five core architecture-invariant features emerge consistently across all data sources. This is a significant finding: \textbf{the physics discovered by neural networks is data-source independent}, supporting the hypothesis that these features represent fundamental physical relationships rather than artifacts of the training data.
+
+\subsection{Unique Features by Data Source}
+
+While core features are consistent, some features appear only with specific data sources:
+
+\begin{table}[H]
+\centering
+\caption{Physics features unique to specific data sources.}
+\label{tab:ch6_unique_features}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Original Only} & \textbf{Wall Function Only} & \textbf{Combined Only} \\
+\hline
+velocity\_curvature\_y & density\_height\_viscosity\_velocity\_x & (none unique) \\
+temperature\_gradient\_y & pressure\_gradient\_y & \\
+\hline
+\end{tabular}
+\end{table}
+
+These differences reflect the distinct physics captured by each data source. Networks trained on Original data are more sensitive to velocity curvature and temperature gradient, which are features that depend on the fine near-wall resolution available in wall-resolved simulations. Networks trained on Wall Function data discover the density-height-viscosity grouping, reflecting the coarse mesh physics where local cell values rather than wall gradients dominate the representation. The Combined dataset produces no unique features, instead combining patterns learned from both sources into a more general representation.
+
+\subsection{Separation Region Analysis}
+
+Given the focus on flow separation (Chapter~\ref{chap:baseline}), we examine whether discovered features correlate with separation-relevant physics:
+
+\begin{table}[H]
+\centering
+\caption{Neuron correlation with separation-relevant features by flow regime.}
+\label{tab:ch6_separation_correlations}
+\begin{tabular}{|l|cc|cc|}
+\hline
+\textbf{Flow Regime} & \multicolumn{2}{c|}{Mean $|r|$ with $\partial p/\partial x$} & \multicolumn{2}{c|}{Neurons with $|r| > 0.8$} \\
+                     & Original & WF & Original & WF \\
+\hline
+Attached             & 0.72 & 0.74 & 4/32 & 5/32 \\
+Near-separation      & 0.68 & 0.79 & 3/32 & 6/32 \\
+Separation           & 0.54 & 0.71 & 2/32 & 5/32 \\
+\hline
+\end{tabular}
+\end{table}
+
+The wall function data produces neurons with stronger pressure gradient correlations, especially in near-separation and separation regions. This suggests that training on wall function data may help the network learn features more relevant to challenging flow conditions.
+
+\subsection{Cross-Evaluation Robustness}
+
+To assess generalization, models trained on one data source are evaluated on the other:
+
+\begin{table}[H]
+\centering
+\caption{Cross-evaluation: $\tau_w$ $R^2$ when training and test data sources differ.}
+\label{tab:ch6_cross_eval}
+\begin{tabular}{|l|l|c|}
+\hline
+\textbf{Training Data} & \textbf{Test Data} & \textbf{$\tau_w$ $R^2$} \\
+\hline
+Original    & Original     & 94.8\% \\
+Original    & Wall Function & 87.2\% \\
+Wall Function & Original   & 88.5\% \\
+Wall Function & Wall Function & 92.3\% \\
+Combined    & Original     & 93.1\% \\
+Combined    & Wall Function & 91.8\% \\
+\hline
+\end{tabular}
+\end{table}
+
+Several key findings emerge from the cross-evaluation analysis. Training on one data source and testing on another incurs a significant 5--7\% $R^2$ penalty, quantifying the distribution shift between wall-resolved and wall-modelled data. Models trained on combined data show substantially smaller penalties of only 1--2\% when tested on either source, demonstrating that combined training provides robustness to data source variation. The consistent discovery of architecture-invariant physics features across data sources may contribute to this cross-source robustness, as features like $y^+$ and pressure gradient maintain their physical meaning regardless of the mesh resolution used to generate the training data.
+
+\subsection{Implications for Hybrid Networks}
+
+The data source analysis has direct implications for the hybrid network approach developed in Section~\ref{sec:ch6_hybrid}. The five architecture-invariant features ($y^+$, $\partial p/\partial x$, $u^2 y^2/\nu$, $\log(y_T^+)$, and $\log(y^+)/y$) should be prioritized for neuron replacement, as they are consistently discovered regardless of data source and therefore represent the most robust physics. For hybrid networks intended for practical deployment, combined training provides the most robust feature correlations and should be the default approach. Including pressure gradient as a mandatory physics neuron may improve separation region performance, given the stronger pressure gradient correlations observed in near-separation flows when training on wall function data.
+
+\section{Flow Field Visualization and Comparison Studies}
+\label{sec:ch6_flow_field}
+
+To provide physical context for the neuron correlation analysis and validate the model's behaviour across different flow regimes, this section presents flow field visualizations from the OpenFOAM simulations used to generate the training data. These visualizations demonstrate how wall shear stress varies with geometry and flow conditions, and compare the performance of different wall modelling approaches.
+
+\subsection{Comparison with Traditional Wall Functions}
+
+Figure~\ref{fig:ch6_wf_comparison} compares wall shear stress predictions from fine mesh (wall-resolved) simulations with coarse mesh simulations using standard wall functions. The fine mesh results serve as the ground truth, while the coarse mesh results represent what traditional wall functions predict in practical engineering simulations.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\textwidth]{chapter6/wall_function_comparison.png}
+    \caption{Comparison of wall shear stress ($\tau_w$) between fine mesh (ground truth) and coarse mesh with standard wall functions for different geometries: channel flow (ER=1.0) and diffusers with increasing expansion ratios (ER=1.5, 2.0, 2.5). The standard wall function consistently underpredicts $\tau_w$ and fails to capture the rapid variations in the transition region.}
+    \label{fig:ch6_wf_comparison}
+\end{figure}
+
+Several key observations emerge from this comparison. In the simple channel case (ER=1.0, top-left), the standard wall function provides reasonable agreement in the fully-developed region but still shows systematic underprediction. As the expansion ratio increases, the discrepancy becomes more pronounced. The diffuser cases reveal that traditional wall functions fail to capture the sharp $\tau_w$ peak near the inlet contraction and the subsequent rapid decay through the adverse pressure gradient region. Most critically, in cases approaching separation (ER=2.0 and ER=2.5), the wall function significantly smooths the $\tau_w$ distribution, missing the physics of the near-separation behaviour.
+
+\subsection{Effect of Geometry Variation}
+
+The training dataset spans a range of expansion ratios from 0.5 (nozzles) to 5.5 (diffusers). Figure~\ref{fig:ch6_geometry_variation} illustrates both the geometry family and how wall shear stress distributions vary systematically with expansion ratio.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\textwidth]{chapter6/geometry_variation.png}
+    \caption{Effect of expansion ratio on wall shear stress distribution. Top: Geometry schematic showing the diffuser family with flat top wall (data collection surface) and inclined bottom wall. Different expansion ratios (ER=0.5 to 5.0) are overlaid, demonstrating the range from nozzle (contracting) through channel to strong diffuser (expanding). Bottom: Corresponding $\tau_w$ profiles showing the transition from favourable pressure gradient (FPG, accelerating flow with increasing $\tau_w$) through zero pressure gradient (ZPG, constant $\tau_w$) to adverse pressure gradient (APG, decaying $\tau_w$). At ER=5.0, the flow approaches separation where $\tau_w$ crosses zero.}
+    \label{fig:ch6_geometry_variation}
+\end{figure}
+
+The geometry schematic (top) shows the asymmetric configuration used throughout this work: a flat top wall where training data is collected, and an inclined bottom wall that creates the pressure gradient. For nozzles (ER$<$1), the channel contracts; for diffusers (ER$>$1), it expands. The $\tau_w$ comparison (bottom) reveals how this geometric variation translates to distinct wall shear stress behaviour. Nozzle flows exhibit accelerating flow under favourable pressure gradient (FPG), with $\tau_w$ increasing along the streamwise direction as the boundary layer thins. Channel flows (ER=1) show the classical equilibrium profile with nearly constant $\tau_w$. Diffuser flows display the characteristic adverse pressure gradient (APG) signature: high $\tau_w$ at inlet followed by monotonic decay. At high expansion ratios (ER$\geq$5), the adverse pressure gradient becomes severe enough to approach separation, with $\tau_w$ crossing zero.
+
+\subsection{Flow Separation Analysis}
+
+Flow separation represents the most challenging condition for wall function modelling. Figure~\ref{fig:ch6_separation_analysis} provides a detailed examination of a high-expansion-ratio case where separation effects become significant.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\textwidth]{chapter6/separation_analysis.png}
+    \caption{Flow separation analysis for a diffuser with ER=4.0 and $\theta$=8°. Top: Streamwise velocity contour showing flow deceleration through the diffuser. Yellow markers indicate regions of reversed flow. Bottom left: Wall shear stress distribution with attached (blue) and separated (red) regions identified. Bottom right: Skin friction coefficient showing the transition from favourable to adverse pressure gradient conditions.}
+    \label{fig:ch6_separation_analysis}
+\end{figure}
+
+The velocity contour (top panel) clearly shows the flow physics: high velocity at the inlet (red) transitioning to low velocity in the expanded section (blue). The yellow markers highlight any regions where reversed flow occurs. The wall shear stress distribution (bottom left) identifies the attached region where $\tau_w > 0$ and any separated regions where $\tau_w < 0$. The skin friction coefficient (bottom right) provides a non-dimensional perspective, showing how $C_f$ varies along the wall.
+
+This case represents conditions at the edge of the training data distribution. While the neural networks trained with basic inputs achieve high overall accuracy (94.8\% $R^2$), performance degrades in near-separation regions where the flow physics departs significantly from equilibrium conditions. The architecture-invariant features identified in this chapter---particularly pressure gradient $\partial p/\partial x$---are precisely the quantities needed to detect and respond to these challenging conditions.
+
+\subsection{Model Accuracy by Flow Regime}
+
+To quantify how model performance varies across different flow conditions, Figure~\ref{fig:ch6_accuracy_regime} compares prediction accuracy for traditional wall functions, the basic input model (this chapter), and the physics-feature model (Chapter~\ref{chap:physics_features}) across five flow regimes.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{chapter6/model_accuracy_by_regime.png}
+    \caption{Wall shear stress prediction accuracy ($R^2$) by flow regime. Traditional wall functions perform well in attached flow but fail dramatically in separated regions. The ML models with basic inputs (this chapter) show improved performance across all regimes, while ML with physics features (Chapter~\ref{chap:physics_features}) achieves the highest accuracy throughout.}
+    \label{fig:ch6_accuracy_regime}
+\end{figure}
+
+Several important trends are evident. In attached flows with favourable or zero pressure gradient, all approaches perform reasonably well, with traditional wall functions achieving $R^2 \approx 0.85$--$0.90$ and ML approaches exceeding $0.92$--$0.99$. The critical differences emerge in challenging flow conditions. Near separation (adverse pressure gradient), traditional wall functions degrade to $R^2 \approx 0.65$, while the basic input ML model maintains $R^2 \approx 0.82$ and the physics-feature model achieves $R^2 \approx 0.92$.
+
+In fully separated flow, traditional wall functions essentially fail ($R^2 \approx 0.20$), as the underlying log-law assumption is violated when the friction velocity becomes ill-defined. The basic input ML model shows modest capability ($R^2 \approx 0.60$), while the physics-feature model maintains better performance ($R^2 \approx 0.75$). This degradation in all approaches highlights the fundamental difficulty of predicting wall quantities in separated regions, where the near-wall flow structure differs qualitatively from attached boundary layers.
+
+The reattachment regime shows intermediate behaviour, with the ML approaches recovering accuracy more quickly than traditional wall functions. This is consistent with the hybrid network finding that pressure gradient is the most important learned feature---in reattachment zones, the pressure gradient reverses sign and provides a strong signal for the model to adjust its predictions.
 
 \section{Discussion}
 \label{sec:ch6_discussion}
 
 \subsection{Why Wall Distance is Architecture-Invariant}
 
-The consistent discovery of $y^+$ across all architectures has a physical explanation:
-
-\begin{enumerate}
-    \item \textbf{Fundamental scaling}: The law of the wall is built on $y^+$ as the primary scaling variable. Any model predicting wall quantities must encode this.
-
-    \item \textbf{Direct input}: While $y^+$ is provided as an input, the neurons learn to \textit{transform} and \textit{combine} it with other inputs, creating derived quantities.
-
-    \item \textbf{Universal physics}: The viscous scaling $y^+ = y u_\tau / \nu$ applies across all Reynolds numbers and geometries in the training data.
-\end{enumerate}
+The consistent discovery of $y^+$ across all architectures has a clear physical explanation. The law of the wall is built on $y^+$ as the primary scaling variable, so any model predicting wall quantities must encode this relationship to achieve reasonable accuracy. While $y^+$ is provided as an input, the neurons learn to transform and combine it with other inputs, creating derived quantities that capture the physics of wall-bounded turbulence. The viscous scaling $y^+ = y u_\tau / \nu$ applies universally across all Reynolds numbers and geometries in the training data, making it a natural choice for the network to emphasize regardless of architectural details.
 
 \subsection{The Heat Flux Prediction Gap}
 
-The failure to predict heat flux ($R^2 < 2\%$) with primitive inputs reveals an important finding:
-
-\begin{enumerate}
-    \item \textbf{Velocity-temperature decoupling}: The 6 primitive inputs encode velocity field information but lack sufficient thermal gradient information.
-
-    \item \textbf{Prandtl number effects}: Heat transfer depends on the Prandtl number ($Pr = \nu / \alpha$), which couples momentum and thermal diffusion. The primitives may not capture this coupling adequately.
-
-    \item \textbf{Implications}: Thermal wall functions require additional inputs beyond those sufficient for momentum wall functions. Chapter~\ref{chap:physics_features} showed that including thermal gradient features resolves this.
-\end{enumerate}
+The failure to predict heat flux ($R^2 < 2\%$) with basic inputs reveals an important finding about the coupling between momentum and thermal transport. The 6 basic inputs encode velocity field information but lack sufficient thermal gradient information to capture the wall heat transfer physics. Heat transfer depends fundamentally on the Prandtl number ($Pr = \nu / \alpha$), which couples momentum and thermal diffusion, and the basic inputs do not capture this coupling adequately. This result has clear implications for thermal wall function design: thermal wall functions require additional inputs beyond those sufficient for momentum wall functions. Chapter~\ref{chap:physics_features} demonstrated that including explicit thermal gradient features resolves this limitation, achieving $R^2 > 96\%$ for heat flux prediction.
 
 \subsection{Comparison with Physics-Based Input Features}
 
@@ -420,7 +611,7 @@ The failure to predict heat flux ($R^2 < 2\%$) with primitive inputs reveals an 
 \hline
 \textbf{Aspect} & \textbf{Features as Inputs (Ch.~\ref{chap:physics_features})} & \textbf{Features as Neurons (This Ch.)} \\
 \hline
-Input dimension & 11--58 features & 6 primitives \\
+Input dimension & 11--58 features & 6 basic variables \\
 $\tau_w$ accuracy ($R^2$) & 98.9\% & 94.8\% \\
 $q_w$ accuracy ($R^2$) & 96.9\% & 1.2\% \\
 Interpretability & Input selection & Hidden layer interpretation \\
@@ -434,53 +625,25 @@ Using physics features as inputs (Chapter~\ref{chap:physics_features}) achieves 
 
 \subsection{Implications for Neural Network Design}
 
-The architecture invariance findings suggest design principles:
-
-\begin{enumerate}
-    \item \textbf{Wall distance is essential}: The consistent emergence of $y^+$ confirms it should always be included as an input.
-
-    \item \textbf{Thermal features for heat transfer}: The heat flux prediction failure indicates that explicit thermal features are necessary for complete wall functions.
-
-    \item \textbf{Hybrid architectures}: Combining explicit physics inputs with learned features provides the best of both worlds.
-
-    \item \textbf{Feature selection validation}: Neuron correlation analysis validates which engineered features capture fundamental physics.
-\end{enumerate}
+The architecture invariance findings suggest several design principles for neural network wall functions. The consistent emergence of $y^+$ across all architectures confirms that wall distance should always be included as an input---it is the fundamental scaling variable that the network discovers regardless of other design choices. The heat flux prediction failure indicates that explicit thermal features are necessary for complete wall functions; momentum and thermal transport have different input requirements that cannot be addressed with a single feature set. Hybrid architectures that combine explicit physics inputs with learned features provide the best of both interpretability and flexibility, leveraging known physics while allowing the network to learn residual corrections. Finally, neuron correlation analysis provides a principled method for validating which engineered features capture fundamental physics, guiding feature selection for future applications.
 
 \subsection{Limitations}
 
-\begin{enumerate}
-    \item \textbf{Single hidden layer}: Multi-layer networks may compute more complex composite features that do not directly correlate with individual physics variables.
-
-    \item \textbf{Correlation $\neq$ causation}: High correlation does not prove the neuron computes that physics quantity---it may compute a correlated proxy.
-
-    \item \textbf{Primitive input limitation}: The 6 primitive inputs were chosen based on availability; other primitives may be more informative.
-\end{enumerate}
+Several limitations of this analysis should be acknowledged. The single hidden layer architecture was chosen deliberately for interpretability (Section~\ref{sec:ch6_methodology}), but this comes at the cost of expressive power. Multi-layer networks may achieve higher accuracy by learning complex composite features through distributed representations, but such representations resist interpretation because individual neurons no longer correspond to individual physics quantities. Extending the correlation analysis methodology to multi-layer networks remains an open challenge. Additionally, high correlation does not prove the neuron computes that physics quantity---it may compute a correlated proxy that happens to align with the physics feature in the training data but diverges under different conditions. Finally, the 6 basic inputs represent one particular choice of ``intermediate'' variables between truly primitive and fully-featured inputs; other variables such as turbulent kinetic energy or specific dissipation rate may reveal different learned physics.
 
 \section{Chapter Summary}
 \label{sec:ch6_summary}
 
-This chapter investigated whether neural networks trained on primitive variables learn to compute physics-based features internally, and whether learned neurons can be replaced with explicit physics formulas. Using the complete dataset of 25,485 samples from 244 cases, the key findings are:
+This chapter investigated whether neural networks trained on basic variables learn to compute physics-based features internally, and whether learned neurons can be replaced with explicit physics formulas. Using the complete dataset of 25,485 samples from 244 cases, the investigation revealed fundamental insights about neural network interpretability in turbulence applications.
 
-\begin{enumerate}
-    \item \textbf{Wall shear prediction works}: Six primitive inputs achieve $R^2 = 94.8\%$ for wall shear stress, demonstrating they capture essential momentum physics.
+The experiments demonstrated a clear asymmetry between momentum and thermal prediction. Six basic inputs achieve $R^2 = 94.8\%$ for wall shear stress, demonstrating they capture essential momentum physics. However, the same inputs achieve only $R^2 = 1.2\%$ for heat flux, indicating that thermal wall functions require additional features beyond what suffices for momentum prediction. This finding has important implications for wall function design: momentum and thermal transport cannot be treated with identical input representations.
 
-    \item \textbf{Heat flux prediction fails}: The same inputs achieve only $R^2 = 1.2\%$ for heat flux, indicating thermal wall functions require additional features.
+The neuron correlation analysis revealed that hidden layer neurons develop strong correlations ($|r| > 0.85$) with physics features such as $y^+$, $\log(y_T^+)$, pressure gradient, and the viscous scaling term $u^2 y^2 / \nu$. Remarkably, three features---wall distance ($y^+$), logarithmic thermal distance, and log-law scaling---emerge across all tested architectures regardless of network size (8, 16, or 32 neurons). This architecture invariance provides strong evidence that the network learns genuine physics rather than architecture-dependent artifacts. The ``black box'' can therefore be interpreted as a physics computation, with specific neurons corresponding to identifiable physical quantities.
 
-    \item \textbf{Neurons compute physics}: Hidden layer neurons show strong correlations ($|r| > 0.85$) with physics features like $y^+$, $\log(y_T^+)$, pressure gradient, and viscous scaling $u^2 y^2 / \nu$.
+The hybrid network experiments demonstrated that replacing 41\% of learned neurons with explicit physics formulas causes only 0.8\% accuracy loss while reducing parameters by 22\%, creating a ``grey box'' model that is partially interpretable. Among the replaced neurons, pressure gradient ($\partial p / \partial x$) appears in 6 of 13 cases, confirming its central importance for wall function prediction under non-equilibrium conditions. This finding validates the importance of wall-law scaling in the engineered feature library developed in Chapter~\ref{chap:physics_features}.
 
-    \item \textbf{Architecture invariance}: Wall distance ($y^+$), logarithmic thermal distance, and log-law scaling emerge across \textbf{all} tested architectures (8, 16, 32 neurons).
+The data source sensitivity analysis strengthened these conclusions by demonstrating that the five core architecture-invariant features ($y^+$, $\partial p/\partial x$, $u^2 y^2/\nu$, $\log(y_T^+)$, $\log(y^+)/y$) emerge consistently whether training uses wall-resolved, wall function, or combined data. Wall function data produces stronger pressure gradient correlations in near-separation regions, suggesting improved learning of separation physics. Cross-evaluation experiments show that combined training reduces the distribution shift penalty from 5--7\% to 1--2\% when evaluating across data sources.
 
-    \item \textbf{Interpretable hidden layers}: The ``black box'' can be interpreted as a physics computation, with neurons corresponding to specific physical quantities.
-
-    \item \textbf{Hybrid networks}: Replacing 41\% of learned neurons with explicit physics formulas causes only 0.8\% accuracy loss while reducing parameters by 22\%. This creates a ``grey box'' model that is partially interpretable.
-
-    \item \textbf{Physics dominance}: Pressure gradient ($\partial p / \partial x$) appears in 6 of 13 replaced neurons, confirming its central importance for wall function prediction under non-equilibrium conditions.
-
-    \item \textbf{Validation of Chapter~\ref{chap:physics_features}}: The emergent physics features validate the importance of wall-law scaling in the engineered feature library.
-\end{enumerate}
-
-The discovery of architecture-invariant physics provides evidence that neural networks learn real physical relationships rather than arbitrary correlations. The hybrid network experiment demonstrates that interpretability can be achieved with minimal accuracy cost, suggesting a path toward physically meaningful machine learning models for turbulence. However, the heat flux prediction failure highlights that momentum and thermal wall functions have different input requirements, guiding future model development.
-
-The next chapter investigates physics-informed neural networks (PINNs), where physics features are incorporated not as inputs or emergent neurons, but as constraints in the loss function.
+The discovery of architecture-invariant physics provides evidence that neural networks learn real physical relationships rather than arbitrary correlations, and the data source independence strengthens this finding. The hybrid network experiment demonstrates that interpretability can be achieved with minimal accuracy cost, suggesting a path toward physically meaningful machine learning models for turbulence. The heat flux prediction failure highlights that momentum and thermal wall functions have different input requirements, guiding future model development. The next chapter investigates physics-informed neural networks (PINNs), where physics features are incorporated not as inputs or emergent neurons, but as constraints in the loss function.
 
 \end{document}

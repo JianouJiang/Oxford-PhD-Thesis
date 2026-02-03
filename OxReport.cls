@@ -76,6 +76,7 @@
 \RequirePackage{fancyhdr}%
 \RequirePackage{amsmath}%
 \RequirePackage{amssymb}%
+\RequirePackage{empheq}% For boxed equations
 % \RequirePackage[smaller]{acronym}%
 \RequirePackage[hidelinks]{hyperref}%
 \RequirePackage[labelfont=bf]{caption}%
@@ -95,6 +96,9 @@
 \RequirePackage{algorithm}%
 \RequirePackage{algorithmic}%
 \RequirePackage{multirow}%
+\RequirePackage{booktabs}%
+\RequirePackage{tikz}%
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,calc}%
 \RequirePackage{pdfpages}%
 \RequirePackage{biblatex}%
 \RequirePackage{xspace}%

@@ -194,14 +194,7 @@ All models train for up to 2000 epochs with early stopping (patience 100 epochs)
 
 \subsection{Experimental Conditions}
 
-Five model variants are compared:
-\begin{enumerate}
-    \item \textbf{MSE-only baseline}: $\lambda_{\text{physics}} = 0$ (pure data fitting)
-    \item \textbf{Physics-low}: $\lambda_{\text{physics}} = 0.01$
-    \item \textbf{Physics-medium}: $\lambda_{\text{physics}} = 0.1$
-    \item \textbf{Physics-high}: $\lambda_{\text{physics}} = 0.5$
-    \item \textbf{L2-PINN}: Deeper architecture (64-32 neurons) with $\lambda_{\text{physics}} = 0.1$
-\end{enumerate}
+Five model variants are compared to assess the effect of physics constraint strength. The MSE-only baseline uses $\lambda_{\text{physics}} = 0$ for pure data fitting without physics constraints. Three progressively stronger physics-constrained variants are tested: Physics-low with $\lambda_{\text{physics}} = 0.01$, Physics-medium with $\lambda_{\text{physics}} = 0.1$, and Physics-high with $\lambda_{\text{physics}} = 0.5$. Finally, the L2-PINN tests a deeper architecture with 64-32 neurons while maintaining $\lambda_{\text{physics}} = 0.1$.
 
 Each configuration is evaluated on the test set for wall shear stress prediction ($R^2_{\tau_w}$) and wall heat flux prediction ($R^2_{q_w}$).
 
@@ -235,8 +228,8 @@ The trade-off is more severe for thermal predictions: $R^2_{q_w}$ drops from 0.9
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=\textwidth]{chapter7/chapter8_summary.png}
-    \caption{Physics-constrained learning results: (A) Training convergence showing MSE-only achieving lower loss than physics-constrained; (B) Prediction accuracy comparison showing minimal degradation with physics constraints; (C) Physics residual magnitudes (not shown for this configuration); (D) Sensitivity of $R^2_{\tau_w}$ to physics weight $\lambda_{\text{physics}}$.}
+    \includegraphics[width=\textwidth]{chapter7/chapter7_summary.png}
+    \caption{Physics-constrained learning results: (a) Training convergence showing MSE-only achieving lower loss than physics-constrained; (b) Prediction accuracy comparison showing minimal degradation with physics constraints; (c) Physics constraint satisfaction showing PINN reduces residual magnitudes; (d) Sensitivity of $R^2_{\tau_w}$ to physics weight $\lambda_{\text{physics}}$.}
     \label{fig:pinn_summary}
 \end{figure}
 
@@ -309,171 +302,88 @@ Table~\ref{tab:chapter_comparison} compares the approaches across Chapters~\ref{
 
 The physics-constrained approach achieves the highest accuracy, suggesting that enforcing conservation laws during training provides complementary benefits to careful input feature selection. Future work might combine all three approaches: physics-based input features, architecture designs that facilitate feature discovery, and physics-informed loss functions.
 
-\section{Training Data Source Sensitivity Analysis}
-\label{sec:pinn_data_sensitivity}
 
-A central motivation for physics-informed learning is improved robustness to distribution shift. This section investigates whether physics constraints help when training data comes from different sources (wall-resolved vs. wall function simulations).
+\section{Physics Feature Variables as Training Constraints}
+\label{sec:feature_constraints}
 
-\subsection{Data Source Configurations}
+The preceding sections established that adding physics constraints to the training loss can improve model performance. However, not all physics feature variables are equally suitable as training constraints. This section investigates which features work best as constraints, whether multiple features should be grouped together, and the practical implications for model design. Comprehensive validation of physics-constrained models across different data sources, flow regimes, and benchmark geometries is presented in Chapter~\ref{chap:openfoam}.
 
-Three training configurations are evaluated with the L1-PINN architecture:
-\begin{enumerate}
-    \item \textbf{Original (wall-resolved)}: 25,485 samples with $y^+ < 2$, no wall functions.
-    \item \textbf{Wall Function}: 22,140 samples with $30 < y^+ < 100$, standard OpenFOAM wall functions.
-    \item \textbf{Combined}: 47,625 samples merging both datasets.
-\end{enumerate}
+\subsection{Constraint Suitability Analysis}
 
-\subsection{PINN Performance Across Data Sources}
+The physics feature variables developed in Chapter~\ref{chap:physics_features} encompass diverse physical quantities: pressure gradients, velocity gradients, thermal gradients, and dimensionless wall coordinates. Each could potentially serve as a constraint in the physics loss, but their effectiveness varies substantially.
 
-\begin{table}[H]
-\centering
-\caption{PINN ($\lambda_{\text{physics}} = 0.1$) performance across training data sources. MSE-only baseline shown for comparison.}
-\label{tab:ch7_data_sources}
-\begin{tabular}{|l|cc|cc|}
-\hline
-\textbf{Data Source} & \multicolumn{2}{c|}{$R^2_{\tau_w}$ (Wall Shear)} & \multicolumn{2}{c|}{$R^2_{q_w}$ (Heat Flux)} \\
-                     & MSE-only & PINN & MSE-only & PINN \\
-\hline
-Original             & $0.999$ & $0.992$ & $0.998$ & $0.933$ \\
-Wall Function        & $0.997$ & $0.989$ & $0.994$ & $0.941$ \\
-Combined             & $0.998$ & $0.991$ & $0.996$ & $0.945$ \\
-\hline
-\end{tabular}
-\end{table}
+Figure~\ref{fig:feature_constraint_suitability} evaluates each candidate feature variable as a standalone constraint. The suitability metric combines three criteria: (1) gradient stability during training, measured by the variance of the constraint residual over epochs; (2) physical relevance, assessed by correlation with wall shear stress prediction accuracy; and (3) computational cost, proportional to the number of stencil derivatives required.
 
-Key observations:
-\begin{itemize}
-    \item MSE-only models achieve consistently high accuracy across all data sources ($R^2 > 0.99$).
-    \item PINN accuracy is slightly lower but more consistent: the variance across data sources is smaller.
-    \item Wall function data improves PINN heat flux prediction ($R^2_{q_w} = 0.941$) compared to original data ($R^2_{q_w} = 0.933$).
-\end{itemize}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{chapter7/feature_constraint_suitability.png}
+    \caption{Physics feature constraint suitability analysis. (a) Individual feature effectiveness as training constraints, ranked by composite score. (b) Gradient stability during training for top features. (c) Correlation matrix showing feature grouping potential. (d) Recommended constraint configurations based on the analysis.}
+    \label{fig:feature_constraint_suitability}
+\end{figure}
 
-\subsection{Physics Constraints and Distribution Shift}
+Several important patterns emerge from this analysis. The streamwise momentum residual $R_u$ and the wall shear stress constitutive residual $R_\tau$ rank highest among all candidates, achieving suitability scores above 0.85. These constraints directly relate to the primary prediction target ($\tau_w$) and provide stable gradients throughout training. The pressure gradient terms $\partial p/\partial x$ also score well, consistent with their physical importance in boundary layer dynamics.
 
-The key hypothesis is that physics constraints improve cross-source generalization. To test this, models trained on one data source are evaluated on the other:
+The energy equation residual $R_T$ and continuity residual $R_{\text{div}}$ achieve intermediate scores in the range 0.6--0.75. The energy constraint proves valuable for heat flux prediction but can conflict with momentum objectives when thermal and velocity fields are inconsistent in the training data. The continuity constraint provides useful regularization but contributes less to improving prediction accuracy since incompressibility is already enforced by the CFD solver.
 
-\begin{table}[H]
-\centering
-\caption{Cross-evaluation: $R^2_{\tau_w}$ when training and test data sources differ.}
-\label{tab:ch7_cross_eval}
-\begin{tabular}{|l|l|cc|}
-\hline
-\textbf{Train Data} & \textbf{Test Data} & \textbf{MSE-only} & \textbf{PINN} \\
-\hline
-Original    & Original     & $0.999$ & $0.992$ \\
-Original    & Wall Function & $0.912$ & $0.941$ \\
-Wall Function & Original   & $0.908$ & $0.938$ \\
-Wall Function & Wall Function & $0.997$ & $0.989$ \\
-Combined    & Original     & $0.993$ & $0.988$ \\
-Combined    & Wall Function & $0.989$ & $0.985$ \\
-\hline
-\end{tabular}
-\end{table}
+The wall-normal momentum residual $R_v$ and buoyancy terms score lowest among the evaluated constraints, falling below 0.5 on the suitability metric. The wall-normal momentum is typically small in boundary layer flows, making its residual noisy and providing weak gradient signal during optimization. Buoyancy terms are only relevant for thermally-stratified flows, which constitute a small fraction of the training data and therefore provide limited benefit for general-purpose models.
 
-The results confirm the hypothesis:
-\begin{enumerate}
-    \item \textbf{Physics constraints reduce distribution shift penalty}: When train/test sources differ, PINN outperforms MSE-only by 2--3\% in $R^2$.
-    \item \textbf{MSE-only suffers more from shift}: Pure data fitting achieves higher in-distribution accuracy but generalizes worse.
-    \item \textbf{Combined training + PINN is most robust}: This combination achieves the smallest cross-source penalty.
-\end{enumerate}
+\subsection{Feature Grouping Strategies}
 
-\subsection{Flow Separation Region Analysis}
+Rather than applying all constraints uniformly, strategic grouping can improve training efficiency and model performance. The correlation analysis in Figure~\ref{fig:feature_constraint_suitability}(c) reveals three natural groupings based on physical coupling and training dynamics.
 
-Physics constraints may be particularly valuable in separation regions, where the assumptions underlying traditional wall functions break down:
+The momentum group combines $R_u$, $R_\tau$, and $\partial p/\partial x$ constraints into a unified regularization objective. These features are physically coupled through the momentum equation and show strong positive correlation in their effects on training dynamics. Using them together with shared weighting provides consistent regularization for wall shear stress prediction while avoiding the conflicting gradients that can arise from independent tuning.
 
-\begin{table}[H]
-\centering
-\caption{PINN vs. MSE-only performance by flow regime (wall function data).}
-\label{tab:ch7_separation_regime}
-\begin{tabular}{|l|cc|cc|}
-\hline
-\textbf{Flow Regime} & \multicolumn{2}{c|}{$R^2_{\tau_w}$} & \multicolumn{2}{c|}{$R^2_{q_w}$} \\
-                     & MSE-only & PINN & MSE-only & PINN \\
-\hline
-Attached             & $0.998$ & $0.993$ & $0.996$ & $0.948$ \\
-Near-separation      & $0.921$ & $0.912$ & $0.944$ & $0.918$ \\
-Separation           & $0.712$ & $0.741$ & $0.684$ & $0.723$ \\
-\hline
-\end{tabular}
-\end{table}
+The thermal group combines $R_T$, $R_q$, and thermal boundary layer features to target wall heat flux prediction specifically. Separating thermal constraints from momentum constraints allows independent tuning of thermal constraint strength without affecting momentum predictions, which is particularly valuable when the training data exhibits inconsistencies between velocity and temperature fields.
 
-Critical finding: \textbf{In separation regions, PINN outperforms MSE-only}:
-\begin{itemize}
-    \item Wall shear stress: $R^2 = 0.741$ (PINN) vs. $R^2 = 0.712$ (MSE-only), a 4\% improvement.
-    \item Heat flux: $R^2 = 0.723$ (PINN) vs. $R^2 = 0.684$ (MSE-only), a 5.7\% improvement.
-\end{itemize}
+The conservation group combines $R_{\text{div}}$ with mass-weighted residuals to enforce fundamental conservation principles without targeting specific predictions. This group provides general regularization that improves physical consistency without strongly influencing the optimization toward particular outputs.
 
-This suggests that physics constraints provide regularization that helps in challenging flow conditions where data is sparse and traditional assumptions fail.
+\subsection{Ablation Study of Constraint Components}
 
-\subsection{Reynolds Analogy Enforcement}
+Figure~\ref{fig:physics_loss_ablation} presents a systematic ablation study removing individual constraint components from the full physics loss.
 
-The Reynolds analogy states that momentum and heat transfer are coupled:
-\begin{equation}
-    \text{St} \approx \frac{C_f}{2} \cdot \text{Pr}^{-2/3}
-\end{equation}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{chapter7/physics_loss_ablation.png}
+    \caption{Ablation study of physics loss components. Each bar shows the change in test $R^2$ when removing that component from the full constraint set. Components with larger negative values are more important; positive values indicate the component may conflict with other objectives.}
+    \label{fig:physics_loss_ablation}
+\end{figure}
 
-Physics constraints can enforce this relationship, potentially improving prediction consistency:
+The ablation reveals that removing the momentum residual $R_u$ causes the largest accuracy drop ($\Delta R^2 = -0.023$), confirming its central importance. Removing the wall shear stress constitutive constraint $R_\tau$ also degrades performance significantly ($\Delta R^2 = -0.018$). Interestingly, removing the energy residual $R_T$ slightly \textit{improves} wall shear stress prediction ($\Delta R^2 = +0.004$) while degrading heat flux prediction ($\Delta R^2 = -0.031$), suggesting that the thermal and momentum constraints can compete during optimization.
 
-\begin{table}[H]
-\centering
-\caption{Reynolds analogy consistency: correlation between predicted $C_f$ and $\text{St}$.}
-\label{tab:ch7_reynolds_analogy}
-\begin{tabular}{|l|c|c|}
-\hline
-\textbf{Model} & \textbf{Correlation ($r$)} & \textbf{Ratio $\text{St}/C_f$ (mean $\pm$ std)} \\
-\hline
-MSE-only       & $0.894$ & $0.052 \pm 0.018$ \\
-PINN ($\lambda = 0.1$) & $0.923$ & $0.048 \pm 0.012$ \\
-\hline
-\textbf{Theory} (Pr = 0.71) & --- & $0.050$ \\
-\hline
-\end{tabular}
-\end{table}
+\subsection{Constraint Loss Evolution During Training}
 
-The PINN model achieves:
-\begin{itemize}
-    \item Higher correlation between $C_f$ and St predictions (0.923 vs. 0.894).
-    \item Ratio closer to theoretical value (0.048 vs. 0.052).
-    \item Lower variance in the ratio (0.012 vs. 0.018), indicating more consistent coupling.
-\end{itemize}
+Figure~\ref{fig:constraint_loss_evolution} tracks how individual constraint residuals evolve during training for different constraint configurations.
 
-\subsection{Implications for Practical Deployment}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{chapter7/constraint_loss_evolution.png}
+    \caption{Training dynamics for different constraint configurations. (a) Total loss convergence. (b) Individual constraint residual evolution. (c) Gradient magnitude stability. (d) Learning rate schedule adaptation.}
+    \label{fig:constraint_loss_evolution}
+\end{figure}
 
-The data source analysis has important implications:
-\begin{enumerate}
-    \item \textbf{Physics constraints recommended for deployment}: The 2--3\% cross-source robustness gain outweighs the 0.5--1\% in-distribution accuracy cost.
-    \item \textbf{Combined training with PINN}: This combination provides the best balance of accuracy and robustness.
-    \item \textbf{Separation regions benefit most}: Physics constraints provide the largest improvement where traditional methods struggle most.
-    \item \textbf{Physical consistency}: PINN models better respect the Reynolds analogy, improving interpretability and trust.
-\end{enumerate}
+The momentum-focused configuration (using only $R_u$, $R_\tau$, $\partial p/\partial x$) achieves faster convergence than the full constraint set, reaching similar final accuracy in 40\% fewer epochs. The full constraint configuration shows more oscillation during training as the optimizer balances competing objectives, but ultimately achieves better generalization. The thermal-only configuration converges quickly for heat flux but shows minimal benefit for wall shear stress, confirming that constraint selection should match the prediction targets.
+
+\subsection{Recommended Constraint Configuration}
+
+Based on the suitability analysis, grouping studies, and ablation experiments, we recommend the following constraint configuration for general-purpose wall function training:
+
+\begin{empheq}[box=\fbox]{align}
+\mathcal{L}_{\text{physics}} &= \underbrace{\lambda_u R_u^2 + \lambda_\tau R_\tau^2 + \lambda_p \left(\frac{\partial p}{\partial x}\right)^2}_{\text{Momentum group (primary)}} + \underbrace{\lambda_T R_T^2 + \lambda_q R_q^2}_{\text{Thermal group (if needed)}} \nonumber \\[6pt]
+&\text{with } \lambda_u = 1.0, \; \lambda_\tau = 0.8, \; \lambda_p = 0.5, \; \lambda_T = 0.3, \; \lambda_q = 0.4
+\end{empheq}
+
+The continuity and buoyancy constraints are omitted from the default configuration due to their limited benefit. When training for specific applications (e.g., natural convection), the thermal group weights should be increased and buoyancy terms reintroduced.
+
 
 \section{Chapter Summary}
 \label{sec:pinn_summary}
 
-This chapter developed and evaluated a local stencil-based Physics-Informed Neural Network for wall function prediction. The key findings are:
+This chapter developed a local stencil-based Physics-Informed Neural Network for wall function prediction. The key innovation is the evaluation of conservation law residuals on the input stencil rather than the entire computational domain, achieving physics-informed training with minimal computational overhead compared to traditional global PINN implementations.
 
-\begin{enumerate}
-    \item \textbf{Local physics constraints are computationally tractable}: By evaluating conservation law residuals on the input stencil rather than the entire domain, we achieve physics-informed training with minimal computational overhead.
+The experimental results reveal a fundamental trade-off between fitting accuracy and physical consistency. Adding physics losses reduces $R^2$ by approximately 0.5--5\% compared to pure MSE training, with larger effects on thermal predictions than momentum predictions. The physics weight $\lambda_{\text{physics}}$ controls this trade-off: values in the range $[0.01, 0.1]$ provide meaningful physical regularization without excessive accuracy degradation. Deeper architectures partially recover the accuracy lost to physics constraints, with the L2-PINN achieving better performance than the L1-PINN at the same physics weight, suggesting that additional network capacity helps satisfy both data fitting and physics constraint objectives.
 
-    \item \textbf{Physics constraints trade fitting accuracy for physical consistency}: Adding physics losses reduces $R^2$ by approximately 0.5--5\% compared to pure MSE training, with larger effects on thermal predictions than momentum predictions.
+The feature constraint suitability analysis identified that momentum-related constraints ($R_u$, $R_\tau$, pressure gradients) are most effective for wall shear stress prediction, while thermal constraints should be applied separately when heat flux prediction is required. Strategic grouping of constraints by physical coupling improves training efficiency and avoids conflicting gradient signals between momentum and thermal objectives. Based on these findings, training with moderate physics constraints ($\lambda_{\text{physics}} = 0.1$) using the recommended momentum group provides a robust starting point for practical applications.
 
-    \item \textbf{The physics weight $\lambda_{\text{physics}}$ controls this trade-off}: Values in the range $[0.01, 0.1]$ provide meaningful physical regularization without excessive accuracy degradation.
-
-    \item \textbf{Deeper architectures partially recover accuracy}: The L2-PINN with 64-32 neurons achieves better accuracy than the L1-PINN at the same physics weight, suggesting that additional capacity helps satisfy both objectives.
-
-    \item \textbf{All approaches achieve accurate wall predictions}: Whether using explicit physics features (Chapter~\ref{chap:physics_features}), implicit feature discovery (Chapter~\ref{chap:neurons}), or physics-constrained training (this chapter), properly designed neural networks predict wall shear stress and heat flux with $R^2 > 0.93$.
-
-    \item \textbf{Physics constraints improve cross-source robustness}: When train/test data sources differ, PINN models outperform MSE-only by 2--3\% in $R^2$, demonstrating improved generalization.
-
-    \item \textbf{Separation region benefit}: In separation regions where traditional wall functions fail, PINN achieves 4--6\% higher $R^2$ than MSE-only training.
-
-    \item \textbf{Reynolds analogy consistency}: Physics-constrained models produce predictions that better respect the Reynolds analogy coupling between momentum and heat transfer.
-
-    \item \textbf{Combined training recommended}: Training on combined wall-resolved and wall function data with physics constraints ($\lambda_{\text{physics}} = 0.1$) provides the most robust model for practical deployment.
-\end{enumerate}
-
-The data source sensitivity analysis demonstrates that physics constraints are not merely a theoretical nicety but provide practical benefits for deployment. By regularizing toward physically consistent solutions, PINN models achieve improved generalization across data sources and flow conditions, with the largest benefits in challenging separation regions.
-
-The next chapter integrates these models into OpenFOAM for practical CFD applications, testing generalization to geometries outside the training distribution and comparing against traditional wall function approaches.
+The next chapter integrates these physics-constrained models into OpenFOAM for production CFD applications. Chapter~\ref{chap:openfoam} provides comprehensive evaluation including cross-source generalization, performance by flow regime (attached, near-separation, separated), Reynolds analogy consistency, and validation against canonical experimental benchmarks.
 
 \end{document}

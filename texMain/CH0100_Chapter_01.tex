@@ -15,44 +15,39 @@ The accurate prediction of turbulent flows near solid boundaries remains one of 
 \section{Industrial Motivation: Where Wall Functions Matter}
 \label{sec:intro_industrial}
 
-The economic and engineering significance of accurate wall function modeling extends across virtually every industry that relies on fluid flow prediction \cite{2212_08989_v3, 2209_02051_v1}. The wall shear stress $\tau_w$ directly determines drag forces that govern fuel consumption in transportation \cite{schlatter2010, 2002_01222_v1}, while the wall heat flux $q_w$ controls thermal management in everything from electronic cooling to nuclear reactor safety \cite{2201_03200_v2, 2202_00435_v1}. Errors in wall function predictions propagate into the quantities that engineers ultimately care about: drag coefficients, heat transfer rates, pressure drops, and system efficiencies \cite{2309_02109_v1, 2404_03542_v1}.
+The economic and engineering significance of accurate wall function modeling extends across virtually every industry that relies on fluid flow prediction \cite{2212_08989_v3, 2209_02051_v1}. The wall shear stress $\tau_w$ directly determines drag forces that govern fuel consumption in transportation \cite{schlatter2010, 2002_01222_v1}, while the wall heat flux $q_w$ controls thermal management in everything from electronic cooling to nuclear reactor safety \cite{2201_03200_v2, 2202_00435_v1}. Errors in wall function predictions propagate into the quantities that engineers ultimately care about: drag coefficients, heat transfer rates, pressure drops, and system efficiencies \cite{2309_02109_v1, 2404_03542_v1}. The breadth of affected industries underscores the fundamental importance of this seemingly specialized topic.
 
-\textbf{Aerospace and gas turbines.} Modern aircraft wings operate at Reynolds numbers exceeding $10^7$, where even small errors in skin friction prediction translate to significant fuel burn penalties. A 1\% error in drag coefficient for a commercial aircraft represents millions of dollars in annual fuel costs across a fleet. The situation is even more critical in gas turbine engines, where blade cooling effectiveness depends on accurate prediction of heat transfer coefficients. Underpredicting heat flux leads to blade failure; overpredicting leads to inefficient use of cooling air that reduces engine efficiency. Both scenarios carry substantial economic consequences.
+In aerospace and gas turbine applications, modern aircraft wings operate at Reynolds numbers exceeding $10^7$, where even small errors in skin friction prediction translate to significant fuel burn penalties---a 1\% error in drag coefficient for a commercial aircraft represents millions of dollars in annual fuel costs across a fleet. The situation is even more critical in gas turbine engines, where blade cooling effectiveness depends on accurate prediction of heat transfer coefficients; underpredicting heat flux leads to blade failure, while overpredicting leads to inefficient use of cooling air that reduces engine efficiency. The automotive industry faces similar challenges, with vehicle manufacturers investing heavily in CFD-based aerodynamic optimization to reduce drag and improve fuel efficiency. For electric vehicles, where range anxiety drives consumer decisions, accurate drag prediction becomes especially important. The complex geometry of vehicle underbodies, wheel wells, and cooling systems creates flow separation and reattachment patterns that challenge classical wall functions, and wind tunnel validation remains essential precisely because CFD predictions using standard wall treatments are often unreliable in these regions.
 
-\textbf{Automotive aerodynamics.} Vehicle manufacturers invest heavily in CFD-based aerodynamic optimization to reduce drag and improve fuel efficiency. With electric vehicles, where range anxiety drives consumer decisions, accurate drag prediction becomes even more critical. The complex geometry of vehicle underbodies, wheel wells, and cooling systems creates flow separation and reattachment patterns that challenge classical wall functions. Wind tunnel validation remains essential precisely because CFD predictions using standard wall treatments are often unreliable in these regions.
+The built environment presents its own demanding applications. Indoor air quality and thermal comfort depend on accurate prediction of airflow patterns near walls, floors, and ceilings, with buoyancy-driven flows developing near heated or cooled surfaces proving particularly challenging for classical wall functions that assume negligible density variations. Given that buildings account for approximately 40\% of global energy consumption, improvements in HVAC system design through better CFD modeling could yield substantial energy savings. Nuclear reactor thermal-hydraulics represents perhaps the most consequential application: safety analysis requires accurate prediction of heat transfer from fuel elements to coolant, and the severe consequences of underpredicting heat flux---potential fuel damage or meltdown---compel regulatory bodies to require substantial safety margins. More accurate wall function models could reduce these margins while maintaining safety, enabling more efficient reactor designs. Similarly, marine and offshore engineering depends on turbulent boundary layer predictions at high Reynolds numbers for ship hull resistance, offshore platform loading, and underwater vehicle performance, with fuel costs typically representing 50--70\% of a commercial vessel's operating expenses.
 
-\textbf{Building ventilation and HVAC.} Indoor air quality and thermal comfort depend on accurate prediction of airflow patterns near walls, floors, and ceilings. The buoyancy-driven flows that develop near heated or cooled surfaces are particularly challenging for classical wall functions, which assume negligible density variations. With buildings accounting for approximately 40\% of global energy consumption, improvements in HVAC system design through better CFD modeling could yield substantial energy savings.
-
-\textbf{Nuclear reactor thermal-hydraulics.} Safety analysis for nuclear reactors requires accurate prediction of heat transfer from fuel elements to coolant. The consequences of underpredicting heat flux---potential fuel damage or meltdown---are severe enough that regulatory bodies require substantial safety margins. More accurate wall function models could reduce these margins while maintaining safety, enabling more efficient reactor designs.
-
-\textbf{Marine and offshore engineering.} Ship hull resistance, offshore platform loading, and underwater vehicle performance all depend on turbulent boundary layer predictions at high Reynolds numbers. The economic incentive is direct: fuel costs typically represent 50--70\% of a commercial vessel's operating expenses, making drag reduction a primary design objective.
-
-These applications share a common challenge: the flows of engineering interest almost never satisfy the equilibrium assumptions of classical wall functions. Pressure gradients, flow separation, thermal coupling, and geometric complexity are the norm rather than the exception. The industrial motivation for improved wall function modeling is thus not academic curiosity but practical necessity.
+These diverse applications share a common challenge: the flows of engineering interest almost never satisfy the equilibrium assumptions of classical wall functions. Pressure gradients, flow separation, thermal coupling, and geometric complexity are the norm rather than the exception. The industrial motivation for improved wall function modeling is thus not academic curiosity but practical necessity.
 
 \section{The Near-Wall Challenge in Turbulent Flow Simulation}
 \label{sec:intro_challenge}
 
-Turbulent boundary layers exhibit a characteristic structure that has fascinated and frustrated fluid dynamicists since Ludwig Prandtl's seminal 1904 paper on boundary layer theory \cite{prandtl1904, 2006_12483_v1, 1905_03634_v1}. Near solid surfaces, velocity gradients become extremely steep as the flow transitions from the no-slip condition at the wall to the free-stream velocity over a distance that may be orders of magnitude smaller than the overall domain scale \cite{blasius1908, 2301_00106_v2}. Resolving these gradients directly requires mesh cells with wall-normal dimensions on the order of the viscous length scale $\delta_\nu = \nu/u_\tau$, where $\nu$ is the kinematic viscosity and $u_\tau = \sqrt{\tau_w/\rho}$ is the friction velocity.
+Turbulent boundary layers present a fundamental challenge for computational fluid dynamics: the steep velocity gradients that develop near solid surfaces require either extremely fine meshes to resolve directly or simplified models to bridge the near-wall region \cite{prandtl1904, 2006_12483_v1, 1905_03634_v1}. The physics underlying this challenge---the layered structure of turbulent boundary layers, the transition from viscous-dominated to turbulent-dominated regions, and the universal scaling laws that emerge---is developed in detail in Chapter~\ref{chap:literature}. Here we focus on the practical implications for computational cost and the resulting need for wall function models.
 
-For high Reynolds number flows typical of engineering applications, this resolution requirement translates to meshes with millions or billions of cells concentrated in thin layers near walls. The computational cost scales approximately as $Re^{1.8}$ for wall-resolved Large Eddy Simulation, making direct resolution impractical for many industrial applications. The situation becomes even more challenging when thermal effects are present, as the thermal boundary layer introduces additional thin regions requiring resolution.
+Resolving near-wall gradients directly requires mesh cells with wall-normal dimensions on the order of the viscous length scale, which for high Reynolds number flows translates to meshes with millions or billions of cells concentrated in thin layers near walls \cite{blasius1908, 2301_00106_v2}. The computational cost scales approximately as $Re^{1.8}$ for wall-resolved Large Eddy Simulation, making direct resolution impractical for most industrial applications. When thermal effects are present, the thermal boundary layer introduces additional thin regions requiring resolution, further increasing computational demands.
 
 \subsection{The Computational Cost of Wall Resolution}
 
-The stark contrast between wall-resolved and wall-modeled simulations is best illustrated through concrete numbers. Table~\ref{tab:mesh_comparison} compares mesh requirements for a representative internal flow at different Reynolds numbers.
+Table~\ref{tab:mesh_comparison} illustrates the stark contrast between wall-resolved and wall-modeled simulations for a representative internal flow.
 
 \begin{table}[H]
     \centering
     \caption{Approximate mesh requirements for wall-resolved versus wall-modeled RANS simulation of channel flow. Wall-resolved meshes require $y^+_1 < 1$; wall-modeled meshes use $y^+_1 \approx 30$--100.}
     \label{tab:mesh_comparison}
-    \begin{tabular}{|c|c|c|c|}
-        \hline
-        \textbf{Reynolds Number} & \textbf{Wall-Resolved Cells} & \textbf{Wall-Modeled Cells} & \textbf{Reduction Factor} \\
-        \hline
+    \small
+    \begin{tabular}{cccc}
+        \toprule
+        \textbf{Reynolds Number} & \textbf{Wall-Resolved} & \textbf{Wall-Modeled} & \textbf{Reduction} \\
+        \midrule
         $Re = 10^4$ & $\sim 10^5$ & $\sim 10^4$ & 10$\times$ \\
         $Re = 10^5$ & $\sim 10^6$ & $\sim 10^5$ & 10$\times$ \\
         $Re = 10^6$ & $\sim 10^7$ & $\sim 10^5$ & 100$\times$ \\
         $Re = 10^7$ & $\sim 10^8$ & $\sim 10^6$ & 100$\times$ \\
-        \hline
+        \bottomrule
     \end{tabular}
 \end{table}
 
@@ -62,34 +57,14 @@ However, this computational savings comes at the cost of accuracy. Wall function
 
 \subsection{Classical Wall Function Theory}
 
-Wall functions offer an alternative to direct resolution: rather than resolving the near-wall region explicitly, the first computational cell is placed in the logarithmic layer (typically at $y^+ \equiv y u_\tau / \nu \approx 30$--100), and algebraic relationships derived from similarity theory provide the wall shear stress and heat flux. This approach reduces mesh requirements by factors of 10--100, bringing turbulent flow simulation within reach of routine engineering analysis.
-
-The classical wall functions developed by Launder and Spalding in the 1970s \cite{launder1974} assume local equilibrium between turbulence production and dissipation, small pressure gradients, and attached flow---conditions well-satisfied in fully-developed channel flow and flat plate boundary layers \cite{moser1999, lee2015, schlatter2010}. Under these conditions, the logarithmic law of the wall provides an accurate relationship between the wall-parallel velocity at the first cell centre and the wall shear stress:
-\begin{equation}
-    u^+ = \frac{1}{\kappa} \ln(y^+) + B
-    \label{eq:log_law_intro}
-\end{equation}
-where $\kappa \approx 0.41$ is the von K\'{a}rm\'{a}n constant and $B \approx 5.2$ is an integration constant. An analogous relationship, based on Reynolds analogy and a turbulent Prandtl number, extends this approach to thermal wall functions:
-\begin{equation}
-    T^+ = Pr_t \left( \frac{1}{\kappa} \ln(y^+) + B_T \right)
-    \label{eq:thermal_log_law}
-\end{equation}
-where $Pr_t \approx 0.85$ is the turbulent Prandtl number and $B_T$ depends on the molecular Prandtl number.
+Wall functions offer an alternative to direct resolution: rather than resolving the near-wall region explicitly, the first computational cell is placed in the logarithmic layer (typically at $y^+ \approx 30$--100), and algebraic relationships derived from similarity theory provide the wall shear stress and heat flux \cite{launder1974}. This approach reduces mesh requirements by factors of 10--100, bringing turbulent flow simulation within reach of routine engineering analysis. The classical wall functions developed by Launder and Spalding in the 1970s assume local equilibrium between turbulence production and dissipation, small pressure gradients, and attached flow---conditions well-satisfied in fully-developed channel flow and flat plate boundary layers \cite{moser1999, lee2015, schlatter2010}. The mathematical framework underlying these wall functions, including the derivation and limitations of the logarithmic law of the wall, is developed comprehensively in Chapter~\ref{chap:literature}.
 
 \section{Limitations of Classical Wall Functions}
 \label{sec:intro_limitations}
 
-The equilibrium assumptions underlying classical wall functions fail precisely where engineering interest is greatest. Consider flows involving:
+The equilibrium assumptions underlying classical wall functions fail precisely where engineering interest is greatest. As flow decelerates under an adverse pressure gradient \cite{clauser1954, stratford1959}, the boundary layer thickens, the velocity profile deviates from logarithmic form \cite{coles1956, 2408_08897_v1}, and the assumption of local equilibrium breaks down; the classical wall function overpredicts wall shear stress and cannot capture the onset of separation \cite{2509_05886_v1, 2511_18552_v1}. The situation becomes more severe in separated regions, where the wall shear stress becomes negative \cite{driver1985, breuer2009, 2312_03295_v2}, making the friction velocity $u_\tau = \sqrt{|\tau_w|/\rho}$ ill-defined for determining wall-normal distance scaling. More fundamentally, the reversed flow near the wall bears no resemblance to the attached boundary layer profile that the logarithmic law describes \cite{2409_04143_v1, 2411_17095_v1}.
 
-\textbf{Adverse pressure gradients}: As flow decelerates under an adverse pressure gradient \cite{clauser1954, stratford1959}, the boundary layer thickens, the velocity profile deviates from logarithmic form \cite{coles1956, 2408_08897_v1}, and the assumption of local equilibrium breaks down. The classical wall function overpredicts wall shear stress and cannot capture the onset of separation \cite{2509_05886_v1, 2511_18552_v1}.
-
-\textbf{Flow separation and reattachment}: In separated regions, the wall shear stress becomes negative \cite{driver1985, breuer2009, 2312_03295_v2}, making the friction velocity $u_\tau = \sqrt{|\tau_w|/\rho}$ ill-defined for determining wall-normal distance scaling. More fundamentally, the reversed flow near the wall bears no resemblance to the attached boundary layer profile that the logarithmic law describes \cite{2409_04143_v1, 2411_17095_v1}.
-
-\textbf{Strong heating or cooling}: Thermal wall functions based on Reynolds analogy \cite{kader1981, 2211_00601_v1} assume that the turbulent transport of heat parallels that of momentum. While approximately valid for moderate temperature differences, this assumption fails when buoyancy effects become significant \cite{2502_05577_v2} or when the turbulent Prandtl number varies substantially from its commonly-assumed value of 0.85 \cite{1910_03097_v1}.
-
-\textbf{Complex geometry}: Three-dimensional flows over curved surfaces, in corners, or around obstacles develop secondary flows and pressure gradient effects that violate the two-dimensional, streamwise-invariant assumptions of classical wall function theory.
-
-These limitations manifest as systematic errors in practical CFD simulations. Flow separation is predicted too late (or not at all), heat transfer is overpredicted in recirculation zones, and the overall solution accuracy degrades precisely in the regions of greatest engineering interest.
+Thermal predictions face additional challenges. Wall functions based on Reynolds analogy \cite{kader1981, 2211_00601_v1} assume that the turbulent transport of heat parallels that of momentum, but this assumption fails when buoyancy effects become significant \cite{2502_05577_v2} or when the turbulent Prandtl number varies substantially from its commonly-assumed value of 0.85 \cite{1910_03097_v1}. Complex geometries introduce yet further complications: three-dimensional flows over curved surfaces, in corners, or around obstacles develop secondary flows and pressure gradient effects that violate the two-dimensional, streamwise-invariant assumptions of classical wall function theory. These limitations manifest as systematic errors in practical CFD simulations---flow separation is predicted too late (or not at all), heat transfer is overpredicted in recirculation zones, and the overall solution accuracy degrades precisely in the regions of greatest engineering interest.
 
 \subsection{A Motivating Example: The Asymmetric Diffuser}
 
@@ -155,103 +130,41 @@ This thesis develops and compares three complementary methods for incorporating 
 
 The first approach encodes physics in the \textit{input representation}. Rather than providing the neural network with raw simulation outputs (velocity components, pressure, temperature at mesh points), we construct non-dimensional features that respect the scaling laws of turbulent boundary layers.
 
-Classical wall function theory teaches us that the relevant variables are wall-scaled quantities: $y^+ = y u_\tau / \nu$, $u^+ = u / u_\tau$, and similar dimensionless groups. These scalings collapse boundary layer data across Reynolds numbers, suggesting that neural networks should receive inputs in these natural coordinates.
-
-We extend this idea to construct a library of 58 physics-based features including:
-\begin{itemize}
-    \item Wall-scaled distances and velocities ($y^+$, $u^+$, $v^+$)
-    \item Pressure gradient terms ($p^+_x = \nu / (\rho u_\tau^3) \cdot \partial p / \partial x$)
-    \item Velocity gradient and curvature quantities
-    \item Thermal equivalents ($T^+$, $y^+_T$ based on thermal friction velocity)
-    \item Deformation tensor invariants
-\end{itemize}
-
-Chapter~\ref{chap:physics_features} demonstrates that this physics-encoded input representation enables generalization across Reynolds numbers and achieves accuracy comparable to much larger sets of primitive variables.
+Classical wall function theory teaches us that the relevant variables are wall-scaled quantities: $y^+ = y u_\tau / \nu$, $u^+ = u / u_\tau$, and similar dimensionless groups. These scalings collapse boundary layer data across Reynolds numbers, suggesting that neural networks should receive inputs in these natural coordinates. We extend this idea to construct a library of 58 physics-based features encompassing wall-scaled distances and velocities ($y^+$, $u^+$, $v^+$), pressure gradient terms ($p^+_x = \nu / (\rho u_\tau^3) \cdot \partial p / \partial x$), velocity gradient and curvature quantities, thermal equivalents ($T^+$, $y^+_T$ based on thermal friction velocity), and deformation tensor invariants. Chapter~\ref{chap:physics_features} demonstrates that this physics-encoded input representation enables generalization across Reynolds numbers and achieves accuracy comparable to much larger sets of primitive variables.
 
 \subsection{Method B: Physics-Guided Network Architecture}
 
-The second approach investigates what neural networks learn \textit{internally} when trained on primitive inputs. Even without explicit physics encoding in the inputs, neural networks must construct internal representations to solve the wall function prediction problem. Do these representations correspond to physically meaningful quantities?
-
-Through systematic correlation analysis between hidden layer neuron activations and physics-based features, we find that networks spontaneously discover physics-relevant quantities. Neurons in trained networks correlate strongly with $y^+$, $\ln(y^+)$, and pressure gradient scalings---precisely the quantities that classical wall function theory identifies as important.
-
-Most remarkably, certain features emerge across network architectures of different sizes. A network with 8 hidden neurons and one with 32 hidden neurons both develop neurons correlated with wall-scaled distance. This \textit{architecture invariance} suggests that these features are fundamental to the learning problem, not artifacts of particular network configurations.
-
-Chapter~\ref{chap:neurons} explores these findings, validating the physics-based input design of Method A while revealing the implicit physics learning capabilities of neural networks.
+The second approach investigates what neural networks learn \textit{internally} when trained on primitive inputs. Even without explicit physics encoding in the inputs, neural networks must construct internal representations to solve the wall function prediction problem, raising the question of whether these representations correspond to physically meaningful quantities. Through systematic correlation analysis between hidden layer neuron activations and physics-based features, we find that networks spontaneously discover physics-relevant quantities: neurons in trained networks correlate strongly with $y^+$, $\ln(y^+)$, and pressure gradient scalings---precisely the quantities that classical wall function theory identifies as important. Most remarkably, certain features emerge across network architectures of different sizes; a network with 8 hidden neurons and one with 32 hidden neurons both develop neurons correlated with wall-scaled distance. This \textit{architecture invariance} suggests that these features are fundamental to the learning problem rather than artifacts of particular network configurations. Chapter~\ref{chap:neurons} explores these findings, validating the physics-based input design of Method A while revealing the implicit physics learning capabilities of neural networks.
 
 \subsection{Method C: Physics-Constrained Loss Functions}
 
-The third approach encodes physics in the \textit{training objective}. Standard supervised learning minimizes prediction error on training data, but nothing prevents the network from learning solutions that violate physical conservation laws. Physics-Informed Neural Networks (PINNs) address this by adding physics residuals to the loss function:
-\begin{equation}
-    \mathcal{L} = \mathcal{L}_{\text{data}} + \lambda_{\text{physics}} \mathcal{L}_{\text{physics}}
-    \label{eq:pinn_loss_intro}
-\end{equation}
-
-For wall functions, we develop a local stencil-based PINN that evaluates conservation law residuals on the same near-wall stencil used for input features. The physics loss penalizes violations of:
-\begin{itemize}
-    \item Streamwise momentum conservation
-    \item Wall-normal momentum (including buoyancy)
-    \item Energy conservation
-    \item Mass conservation (incompressibility)
-\end{itemize}
-
-Unlike global PINNs that require automatic differentiation over entire computational domains, this local approach maintains computational efficiency while enforcing physics constraints where they matter most: in the near-wall region.
-
-Chapter~\ref{chap:pinn} develops this approach and characterizes the trade-off between fitting accuracy and physical consistency.
+The third approach encodes physics in the \textit{training objective}. Standard supervised learning minimizes prediction error on training data, but nothing prevents the network from learning solutions that violate physical conservation laws. Physics-Informed Neural Networks (PINNs) address this limitation by adding physics residuals to the loss function: $\mathcal{L} = \mathcal{L}_{\text{data}} + \lambda_{\text{physics}} \mathcal{L}_{\text{physics}}$. For wall functions, we develop a local stencil-based PINN that evaluates conservation law residuals on the same near-wall stencil used for input features, penalizing violations of streamwise and wall-normal momentum conservation, energy conservation, and mass conservation (incompressibility). Unlike global PINNs that require automatic differentiation over entire computational domains, this local approach maintains computational efficiency while enforcing physics constraints where they matter most: in the near-wall region. Chapter~\ref{chap:pinn} develops this approach and characterizes the trade-off between fitting accuracy and physical consistency.
 
 \subsection{Complementary Methods}
 
-These three methods are not mutually exclusive; they address physics encoding at different stages of the machine learning pipeline:
-
-\begin{center}
-\begin{tabular}{|l|l|l|}
-    \hline
-    \textbf{Method} & \textbf{Stage} & \textbf{Physics Mechanism} \\
-    \hline
-    A: Physics Inputs & Data preparation & Non-dimensional features \\
-    B: Physics Architecture & Model design & Implicit feature discovery \\
-    C: Physics Loss & Training objective & Conservation constraints \\
-    \hline
-\end{tabular}
-\end{center}
-
-A comprehensive wall function model might combine all three: physics-encoded inputs, architectures designed to facilitate physics discovery, and loss functions that enforce conservation. The experimental chapters of this thesis evaluate each method independently to understand their individual contributions before considering combinations.
+These three methods are not mutually exclusive but rather address physics encoding at different stages of the machine learning pipeline: Method A operates during data preparation through non-dimensional features, Method B influences model design through implicit feature discovery, and Method C shapes the training objective through conservation constraints. A comprehensive wall function model might combine all three---physics-encoded inputs, architectures designed to facilitate physics discovery, and loss functions that enforce conservation. The experimental chapters of this thesis evaluate each method independently to understand their individual contributions before considering combinations.
 
 \section{Research Questions}
 \label{sec:intro_questions}
 
-This thesis addresses five specific research questions:
+This thesis addresses five interconnected research questions that progressively build understanding of physics-informed machine learning for wall functions.
 
-\textbf{RQ1: Can machine learning models predict wall shear stress and heat flux accurately across diverse flow conditions?}
-This baseline question establishes whether neural networks can learn the wall function mapping at all, and if so, what accuracy is achievable with different input representations and architectures.
+The first and most fundamental question (\textbf{RQ1}) asks whether machine learning models can predict wall shear stress and heat flux accurately across diverse flow conditions. This baseline question establishes whether neural networks can learn the wall function mapping at all, and if so, what accuracy is achievable with different input representations and architectures. Building on this foundation, \textbf{RQ2} investigates whether physics-based input features improve generalization compared to primitive variables. If networks can learn equally well from primitives and from physics features, the additional effort of computing physics-based inputs may not be justified; conversely, if physics features enable better generalization, they provide a concrete prescription for feature engineering in wall function applications.
 
-\textbf{RQ2: Do physics-based input features improve generalization compared to primitive variables?}
-If networks can learn equally well from primitives and from physics features, the additional effort of computing physics-based inputs may not be justified. Conversely, if physics features enable better generalization, they provide a concrete prescription for feature engineering in wall function applications.
+The third question (\textbf{RQ3}) probes what neural networks learn internally when trained on primitive inputs---do they spontaneously discover physics-based features? This question connects Methods A and B: if networks discover physics features internally, it validates the importance of these features while suggesting that explicit encoding may not be strictly necessary. \textbf{RQ4} then examines whether physics-constrained training improves extrapolation to conditions outside the training distribution. Method C sacrifices some in-distribution accuracy for physical consistency, and the critical question is whether this trade-off pays off when models encounter flows not represented in training data.
 
-\textbf{RQ3: Do neural networks discover physics-based features spontaneously when trained on primitives?}
-This question probes the relationship between Methods A and B. If networks discover physics features internally, it validates the importance of these features while suggesting that explicit encoding may not be strictly necessary.
-
-\textbf{RQ4: Does physics-constrained training improve extrapolation to conditions outside the training distribution?}
-Method C sacrifices some in-distribution accuracy for physical consistency. The critical question is whether this trade-off pays off when models encounter flows not represented in training data.
-
-\textbf{RQ5: Can ML wall functions be deployed in production CFD codes and outperform classical approaches?}
-Academic demonstrations on test sets must ultimately translate to practical utility. This question addresses the engineering viability of the proposed approaches.
+Finally, \textbf{RQ5} addresses the practical question of whether ML wall functions can be deployed in production CFD codes and outperform classical approaches. Academic demonstrations on test sets must ultimately translate to practical utility, and this question determines the engineering viability of the proposed methods.
 
 \section{Research Objectives}
 \label{sec:intro_objectives}
 
-This thesis pursues four interconnected objectives that structure the experimental chapters:
+This thesis pursues four interconnected objectives that structure the experimental chapters. The first objective is to develop a systematic methodology for generating training data, since high-quality training data is the foundation of any machine learning approach. We develop a dual-mesh methodology that pairs fine-mesh (wall-resolved) simulations with coarse-mesh simulations of the same flow: the fine mesh provides ground-truth wall shear stress and heat flux, while the coarse mesh provides the input features that a deployed model would have access to. This approach generates naturally-paired training data across 244 configurations spanning attached and separated flows.
 
-\textbf{Objective 1: Develop a systematic methodology for generating training data.}
-High-quality training data is the foundation of any machine learning approach. We develop a dual-mesh methodology that pairs fine-mesh (wall-resolved) simulations with coarse-mesh simulations of the same flow. The fine mesh provides ground-truth wall shear stress and heat flux; the coarse mesh provides the input features that a deployed model would have access to. This approach generates naturally-paired training data across 244 configurations spanning attached and separated flows.
+The second objective concerns the design of physics-informed input features. Classical wall functions succeed because they use the right non-dimensional variables---$y^+$, $u^+$, and similar quantities that collapse boundary layer profiles across Reynolds numbers---and we extend this insight by developing a library of 58 physics-based features derived from the near-wall stencil data. These features encode quantities like local velocity gradients, pressure gradients, curvature terms, and thermal variables in wall-scaled and non-dimensional forms, providing the neural network with inputs that respect the scaling laws of turbulent boundary layers.
 
-\textbf{Objective 2: Design physics-informed input features.}
-Classical wall functions succeed because they use the right non-dimensional variables: $y^+$, $u^+$, and similar quantities that collapse boundary layer profiles across Reynolds numbers. We develop a library of 58 physics-based features derived from the near-wall stencil data, encoding quantities like local velocity gradients, pressure gradients, curvature terms, and thermal variables in wall-scaled and non-dimensional forms. These features provide the neural network with inputs that respect the scaling laws of turbulent boundary layers.
+The third objective explores physics-guided architectures and training methods. Beyond input features, physical knowledge can be encoded in the network architecture and training procedure; we investigate whether neural networks spontaneously discover physics-based features in their hidden layers, and we develop physics-constrained loss functions that penalize violations of conservation laws during training.
 
-\textbf{Objective 3: Investigate physics-guided architectures and training.}
-Beyond input features, physical knowledge can be encoded in the network architecture and training procedure. We investigate whether neural networks spontaneously discover physics-based features in their hidden layers, and we develop physics-constrained loss functions that penalize violations of conservation laws during training.
-
-\textbf{Objective 4: Integrate trained models into production CFD solvers.}
-Academic machine learning research often stops at demonstrating accuracy on test sets. We complete the engineering loop by implementing trained models as boundary conditions in OpenFOAM, validating performance on benchmark cases beyond the training distribution, and comparing against classical wall functions in both two-dimensional and three-dimensional configurations.
+The fourth and final objective is to integrate trained models into production CFD solvers. Academic machine learning research often stops at demonstrating accuracy on test sets, but we complete the engineering loop by implementing trained models as boundary conditions in OpenFOAM, validating performance on benchmark cases beyond the training distribution, and comparing against classical wall functions in both two-dimensional and three-dimensional configurations.
 
 \section{Thesis Contributions}
 \label{sec:intro_contributions}
@@ -273,42 +186,18 @@ This thesis makes the following contributions to the field of machine learning f
 \section{Scope and Limitations}
 \label{sec:intro_scope}
 
-To maintain focus and depth, this thesis adopts specific boundaries on the problems addressed:
+To maintain focus and depth, this thesis adopts specific boundaries on the problems addressed. In terms of flow regimes, we consider incompressible, low-Mach-number flows with Reynolds numbers in the range 8,000--24,000; while the methodology extends in principle to compressible flows and higher Reynolds numbers, validation is limited to the incompressible regime. All simulations use Reynolds-Averaged Navier-Stokes (RANS) equations with the $k$-$\omega$ SST turbulence model, and although the wall functions developed here could be adapted for Large Eddy Simulation, LES-specific considerations such as subgrid scale modeling near walls are not addressed.
 
-\textbf{Flow regimes.} We consider incompressible, low-Mach-number flows with Reynolds numbers in the range 8,000--24,000. While the methodology extends in principle to compressible flows and higher Reynolds numbers, validation is limited to the incompressible regime.
-
-\textbf{Turbulence modeling.} All simulations use Reynolds-Averaged Navier-Stokes (RANS) equations with the $k$-$\omega$ SST turbulence model. The wall functions developed here could be adapted for Large Eddy Simulation, but LES-specific considerations (subgrid scale modeling near walls) are not addressed.
-
-\textbf{Geometry.} Training data comes from two-dimensional channel, diffuser, and nozzle configurations. Validation includes two-dimensional benchmark cases (backward-facing step, periodic hills) and preliminary three-dimensional results, but comprehensive three-dimensional validation remains future work.
-
-\textbf{Thermal coupling.} We consider passive scalar transport with fixed wall temperatures. Conjugate heat transfer, radiative effects, and strongly-coupled thermal-fluid interactions are outside the scope.
-
-\textbf{Transient effects.} All simulations assume steady-state conditions. Extension to unsteady flows, where temporal history effects may be important, is identified as a direction for future research.
-
-These limitations define the domain within which the thesis results are validated. Extensions beyond these boundaries are discussed in Chapter~\ref{chap:conclusion} as opportunities for future work.
+Training data comes from two-dimensional channel, diffuser, and nozzle configurations, with validation on two-dimensional benchmark cases (backward-facing step, periodic hills) and preliminary three-dimensional results; comprehensive three-dimensional validation remains future work. For thermal coupling, we consider passive scalar transport with fixed wall temperatures, leaving conjugate heat transfer, radiative effects, and strongly-coupled thermal-fluid interactions outside the scope. All simulations assume steady-state conditions, with extension to unsteady flows---where temporal history effects may be important---identified as a direction for future research. These limitations define the domain within which the thesis results are validated, and extensions beyond these boundaries are discussed in Chapter~\ref{chap:conclusion} as opportunities for future work.
 
 \section{Thesis Outline}
 \label{sec:intro_outline}
 
-This thesis is organized as follows:
+This thesis is organized into nine chapters that progressively develop the physics-informed machine learning framework for wall functions. Following this introduction, Chapter~\ref{chap:literature} traces the evolution of wall function modeling from Prandtl's boundary layer theory through modern machine learning approaches, situating the present work within this intellectual history and identifying the specific gaps that the thesis addresses. Chapter~\ref{chap:methodology} describes the computational setup, including the dual-mesh approach for generating paired training data, the OpenFOAM simulation configurations, and the post-processing pipeline that constructs stencil-based inputs from raw simulation outputs.
 
-\textbf{Chapter~\ref{chap:literature}: Literature Review} traces the evolution of wall function modeling from Prandtl's boundary layer theory through modern machine learning approaches. The chapter situates the present work within this intellectual history, identifying the specific gaps that the thesis addresses.
+The core technical contributions appear in Chapters~\ref{chap:baseline}--\ref{chap:pinn}. Chapter~\ref{chap:baseline} presents the baseline machine learning approach---fully-connected neural networks trained on primitive flow variables to predict wall shear stress and heat flux---establishing the achievable accuracy and identifying limitations that motivate the physics-informed extensions. Chapter~\ref{chap:physics_features} develops the library of 58 physics-based input features and systematically compares performance against primitive-variable inputs (Method A), identifying a core set of features that balance accuracy, interpretability, and computational cost. Chapter~\ref{chap:neurons} investigates what neural networks learn internally when trained on primitive inputs (Method B), demonstrating through correlation analysis that networks discover wall-scaled quantities even without explicit physics encoding. Chapter~\ref{chap:pinn} develops and evaluates the local stencil-based PINN approach (Method C), incorporating conservation law residuals into the training loss function and characterizing the trade-off between fitting accuracy and physical consistency.
 
-\textbf{Chapter~\ref{chap:methodology}: Methodology and Structured Data Generation} describes the computational setup, including the dual-mesh approach for generating paired training data, the OpenFOAM simulation configurations, and the post-processing pipeline that constructs stencil-based inputs from raw simulation outputs.
-
-\textbf{Chapter~\ref{chap:baseline}: Data-Driven Velocity and Thermal Wall Functions} presents the baseline machine learning approach: fully-connected neural networks trained on primitive flow variables to predict wall shear stress and heat flux. This chapter establishes the achievable accuracy and identifies limitations that motivate the physics-informed extensions.
-
-\textbf{Chapter~\ref{chap:physics_features}: Non-Dimensional Feature Library} develops the library of 58 physics-based input features and systematically compares performance against primitive-variable inputs (Method A). The chapter identifies a core set of features that balance accuracy, interpretability, and computational cost.
-
-\textbf{Chapter~\ref{chap:neurons}: Physics-Guided Hidden Layers} investigates what neural networks learn internally when trained on primitive inputs (Method B). Through correlation analysis between hidden layer activations and physics-based features, the chapter demonstrates that networks discover wall-scaled quantities even without explicit physics encoding.
-
-\textbf{Chapter~\ref{chap:pinn}: Physics-Constrained Learning} develops and evaluates the local stencil-based PINN approach (Method C), incorporating conservation law residuals into the training loss function. The chapter characterizes the trade-off between fitting accuracy and physical consistency.
-
-\textbf{Chapter~\ref{chap:separation}: Identification of Flow Separation} addresses the distinct challenge of detecting separated regions, where classical wall functions fail most severely. The chapter develops classifiers that distinguish attached from separated flow based on the same stencil inputs.
-
-\textbf{Chapter~\ref{chap:openfoam}: OpenFOAM Integration and Validation} presents the production implementation, including C++ boundary condition code, model export utilities, and comprehensive validation on benchmark geometries beyond the training distribution.
-
-\textbf{Chapter~\ref{chap:conclusion}: Conclusion and Future Work} summarizes the contributions, discusses limitations, and outlines directions for future research including extension to higher Reynolds numbers, three-dimensional flows, and unsteady applications.
+The final chapters address practical deployment and conclusions. Chapter~\ref{chap:separation} tackles the distinct challenge of detecting separated regions where classical wall functions fail most severely, developing classifiers that distinguish attached from separated flow based on stencil inputs. Chapter~\ref{chap:openfoam} presents the production implementation, including C++ boundary condition code, model export utilities, and comprehensive validation on benchmark geometries beyond the training distribution. Chapter~\ref{chap:conclusion} summarizes the contributions, discusses limitations, and outlines directions for future research including extension to higher Reynolds numbers, three-dimensional flows, and unsteady applications.
 
 \section{Chapter Summary}
 \label{sec:intro_summary}
