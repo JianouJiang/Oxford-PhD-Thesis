@@ -90,7 +90,7 @@ Figure~\ref{fig:mesh_comparison} compares the near-wall mesh structure for fine 
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{chapter3/mesh_comparison.png}
-    \caption{Comparison of fine and coarse mesh near-wall resolution. (a) Fine mesh with $y^+ < 2$ first cell, showing dense clustering near the wall. (b) Coarse mesh with $y^+ \approx 5$--$10$ first cell, typical of production meshes requiring wall functions.}
+    \caption{Comparison of fine and coarse mesh near-wall resolution. (a) Fine mesh with $y^+ < 1$ first cell, showing dense clustering near the wall. (b) Coarse mesh with $y^+ \approx 30$--$300$ first cell, typical of production meshes requiring wall functions.}
     \label{fig:mesh_comparison}
 \end{figure}
 
@@ -139,19 +139,19 @@ The incompressible Reynolds-Averaged Navier-Stokes (RANS) equations are solved i
 \textbf{Continuity equation:}
 \begin{equation}
     \nabla \cdot \mathbf{U} = 0
-    \label{eq:continuity}
+    \label{eq:ch3_continuity}
 \end{equation}
 
 \textbf{Momentum equation:}
 \begin{equation}
     \nabla \cdot (\mathbf{U} \mathbf{U}) = -\frac{1}{\rho}\nabla p + \nabla \cdot \left[(\nu + \nu_t)\left(\nabla \mathbf{U} + (\nabla \mathbf{U})^T\right)\right]
-    \label{eq:momentum}
+    \label{eq:ch3_momentum}
 \end{equation}
 
 \textbf{Energy equation:}
 \begin{equation}
     \nabla \cdot (\mathbf{U} T) = \nabla \cdot \left[\left(\alpha + \alpha_t\right)\nabla T\right]
-    \label{eq:energy}
+    \label{eq:ch3_energy}
 \end{equation}
 
 where $\mathbf{U}$ is the velocity vector, $p$ is the kinematic pressure, $\nu$ is the kinematic viscosity, $\nu_t$ is the turbulent viscosity, $T$ is temperature, $\alpha$ is thermal diffusivity, and $\alpha_t$ is turbulent thermal diffusivity.
@@ -248,7 +248,7 @@ Simulations are considered converged when all residuals fall below $10^{-6}$ and
 \section{Validation Against Benchmark Data}
 \label{sec:ch3_validation}
 
-Before using the simulation results as training data, it is essential to verify that our OpenFOAM simulations produce accurate predictions in regions where the underlying physics is well understood. This validation serves two critical purposes. First, it establishes confidence that the training data generated from our fine mesh simulations can be trusted as ground truth for neural network training---if the simulations do not match established benchmarks in attached flow regions where RANS is expected to perform well, the resulting training data would teach the network incorrect relationships. Second, by using OpenFOAM consistently throughout this work, from training data generation to eventual deployment of the trained ML wall functions in Chapter~\ref{chap:physics_constrained}, we ensure that any performance comparisons between traditional wall functions and our learned models are conducted on a level playing field, with identical numerical schemes, boundary condition implementations, and solver settings.
+Before using the simulation results as training data, it is essential to verify that our OpenFOAM simulations produce accurate predictions in regions where the underlying physics is well understood. This validation serves two critical purposes. First, it establishes confidence that the training data generated from our fine mesh simulations can be trusted as ground truth for neural network training---if the simulations do not match established benchmarks in attached flow regions where RANS is expected to perform well, the resulting training data would teach the network incorrect relationships. Second, by using OpenFOAM consistently throughout this work, from training data generation to eventual deployment of the trained ML wall functions in Chapter~\ref{chap:pinn}, we ensure that any performance comparisons between traditional wall functions and our learned models are conducted on a level playing field, with identical numerical schemes, boundary condition implementations, and solver settings.
 
 \subsection{Channel Flow Validation}
 
@@ -398,7 +398,7 @@ The Johns Hopkins Turbulence Database (JHTDB) provides access to exceptionally l
 
 The experimental and DNS benchmark data described above serve a critical role in our machine learning wall function development. Most fundamentally, they fill the gap where our RANS simulations cannot be trusted: as demonstrated in the preceding subsections, even well-tuned RANS models with fine mesh resolution consistently fail to match experimental skin friction distributions in separated regions. By incorporating benchmark data as training targets, we enable the neural network to learn the correct wall behavior in flow regimes where RANS-generated ground truth would be misleading.
 
-Beyond training data augmentation, the benchmarks provide independent validation of model predictions that is particularly valuable for separated flows outside the training distribution. The detailed measurements also inform our feature engineering decisions, as they reveal which flow quantities remain predictable in separated regions and which lose their correlation with wall quantities. Finally, comparing the feature distributions between attached flow data from RANS and separated flow data from experiments helps quantify the domain shift that limits generalization and guides strategies to bridge this gap. The integration of benchmark data into the training pipeline is investigated systematically in Chapters~\ref{chap:physics_features}--\ref{chap:physics_constrained}, where we compare model performance with and without benchmark data augmentation.
+Beyond training data augmentation, the benchmarks provide independent validation of model predictions that is particularly valuable for separated flows outside the training distribution. The detailed measurements also inform our feature engineering decisions, as they reveal which flow quantities remain predictable in separated regions and which lose their correlation with wall quantities. Finally, comparing the feature distributions between attached flow data from RANS and separated flow data from experiments helps quantify the domain shift that limits generalization and guides strategies to bridge this gap. The integration of benchmark data into the training pipeline is investigated systematically in Chapters~\ref{chap:physics_features}--\ref{chap:pinn}, where we compare model performance with and without benchmark data augmentation.
 
 \subsubsection{Simulate-and-Replace Integration Method}
 \label{sec:ch3_simulate_replace}
@@ -439,7 +439,7 @@ This dimensional consistency ensures that benchmark-derived training samples int
 \subsubsection{Thermal Data Limitations in Benchmark Experiments}
 \label{sec:ch3_thermal_limitation}
 
-A significant limitation of available separated flow benchmarks is the scarcity of heat transfer measurements. While momentum quantities such as skin friction coefficient, pressure coefficient, and velocity profiles are routinely measured using pressure taps, hot-wire anemometry, or laser Doppler anemometry, thermal measurements demand considerably more complex experimental apparatus. Accurate wall heat flux measurements require heated or cooled test section walls with precisely controlled boundary conditions, embedded thermocouples or infrared thermography for surface temperature measurement, and careful thermal insulation to minimize heat losses to the surroundings. These additional requirements explain why most canonical separated flow benchmarks---including the backward-facing step of Driver and Seegmiller \cite{driver1985}, the periodic hills of Breuer et al. \cite{breuer2009}, and the asymmetric diffuser of Buice and Eaton---provide only momentum data. Notable exceptions include DNS databases that can simulate passive scalar transport and dedicated heated experiments such as the heated backward-facing step of Vogel and Eaton \cite{vogel1985}. This asymmetry in available benchmark data means that our training methodology can augment $\tau_w$ targets in separated regions with high-fidelity experimental values, while $q_w$ predictions must rely primarily on RANS-generated training data. The implications of this limitation are examined in Chapter~\ref{chap:physics_constrained}, where we investigate whether shared feature representations learned from momentum benchmarks can indirectly improve thermal predictions.
+A significant limitation of available separated flow benchmarks is the scarcity of heat transfer measurements. While momentum quantities such as skin friction coefficient, pressure coefficient, and velocity profiles are routinely measured using pressure taps, hot-wire anemometry, or laser Doppler anemometry, thermal measurements demand considerably more complex experimental apparatus. Accurate wall heat flux measurements require heated or cooled test section walls with precisely controlled boundary conditions, embedded thermocouples or infrared thermography for surface temperature measurement, and careful thermal insulation to minimize heat losses to the surroundings. These additional requirements explain why most canonical separated flow benchmarks---including the backward-facing step of Driver and Seegmiller \cite{driver1985}, the periodic hills of Breuer et al. \cite{breuer2009}, and the asymmetric diffuser of Buice and Eaton---provide only momentum data. Notable exceptions include DNS databases that can simulate passive scalar transport and dedicated heated experiments such as the heated backward-facing step of Vogel and Eaton \cite{vogel1985}. This asymmetry in available benchmark data means that our training methodology can augment $\tau_w$ targets in separated regions with high-fidelity experimental values, while $q_w$ predictions must rely primarily on RANS-generated training data. The implications of this limitation are examined in Chapter~\ref{chap:pinn}, where we investigate whether shared feature representations learned from momentum benchmarks can indirectly improve thermal predictions.
 
 Table~\ref{tab:benchmark_summary} summarizes the key characteristics of each benchmark case.
 

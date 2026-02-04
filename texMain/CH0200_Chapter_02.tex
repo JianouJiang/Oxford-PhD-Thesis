@@ -25,7 +25,7 @@ This scale separation enables systematic simplification of the Navier-Stokes equ
 
 The boundary layer equations take the form
 \begin{align}
-    u \frac{\partial u}{\partial x} + v \frac{\partial u}{\partial y} &= -\frac{1}{\rho}\frac{\partial p}{\partial x} + \nu \frac{\partial^2 u}{\partial y^2} \label{eq:bl_momentum} \\
+    u \frac{\partial u}{\partial x} + v \frac{\partial u}{\partial y} &= -\frac{1}{\rho}\frac{\partial p}{\partial x} + \nu \frac{\partial^2 u}{\partial y^2} \label{eq:ch2_bl_momentum} \\
     \frac{\partial u}{\partial x} + \frac{\partial v}{\partial y} &= 0 \label{eq:bl_continuity}
 \end{align}
 where the pressure gradient is imposed by the external inviscid flow and varies along the surface. For a flat plate at zero incidence with uniform free-stream velocity, this gradient vanishes, yielding the canonical zero-pressure-gradient boundary layer that serves as the foundation for wall function development \cite{2301_00106_v2, 2105_10889_v1}. Non-zero pressure gradients arise when the external flow accelerates or decelerates, profoundly affecting boundary layer behavior in ways that remain challenging to model even today \cite{2509_05886_v1, 2408_08897_v1}.

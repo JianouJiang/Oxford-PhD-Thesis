@@ -38,9 +38,9 @@ The selection of physics-based features is grounded in fundamental principles of
 The physics of turbulent boundary layers is governed by the competition between viscous forces, which dominate near the wall, and inertial forces, which dominate in the outer region. Prandtl's boundary layer equations describe this behaviour for steady, two-dimensional flow \cite{prandtl1904, schlichting2016}:
 \begin{equation}
     U \frac{\partial U}{\partial x} + V \frac{\partial U}{\partial y} = -\frac{1}{\rho}\frac{\partial p}{\partial x} + \frac{\partial}{\partial y}\left[(\nu + \nu_t)\frac{\partial U}{\partial y}\right]
-    \label{eq:bl_momentum}
+    \label{eq:ch5_bl_momentum}
 \end{equation}
-where $\nu_t$ is the turbulent eddy viscosity. The wall shear stress $\tau_w = \mu (\partial U/\partial y)|_{y=0}$ depends on the entire velocity profile, which is shaped by the balance of terms in Equation~\ref{eq:bl_momentum}. This observation motivates the inclusion of features that characterize each term: convective acceleration ($U \partial U/\partial x$), pressure gradient ($\partial p/\partial x$), and velocity gradients ($\partial U/\partial y$, $\partial^2 U/\partial y^2$).
+where $\nu_t$ is the turbulent eddy viscosity. The wall shear stress $\tau_w = \mu (\partial U/\partial y)|_{y=0}$ depends on the entire velocity profile, which is shaped by the balance of terms in Equation~\ref{eq:ch5_bl_momentum}. This observation motivates the inclusion of features that characterize each term: convective acceleration ($U \partial U/\partial x$), pressure gradient ($\partial p/\partial x$), and velocity gradients ($\partial U/\partial y$, $\partial^2 U/\partial y^2$).
 
 \subsection{Wall-Law Scaling and Similarity}
 
