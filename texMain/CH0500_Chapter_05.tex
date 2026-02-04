@@ -16,6 +16,13 @@ The central hypothesis is that physics-based features provide the network with i
 
 \begin{figure}[H]
     \centering
+    \includegraphics[width=0.95\textwidth]{chapter5/chapter5_overview.pdf}
+    \caption{Conceptual overview of the physics-encoded inputs approach. Raw flow data from the $3 \times 5$ stencil undergoes physics-based feature engineering to produce 58 dimensionless quantities ($y^+$, $u^+$, $\partial p/\partial x$, $Re_y$, etc.) before being processed by the neural network. This transformation encodes established turbulence physics directly into the input representation.}
+    \label{fig:ch5_overview}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
     \includegraphics[width=0.95\textwidth]{chapter5/feature_physics_connection.png}
     \caption{Conceptual overview of physics-based feature engineering. Flow field information is transformed into physics-based features ($y^+$, $u^+$, $\partial p/\partial x$, $Re_y$, $\sqrt{S_{ij}S_{ij}}$) that encode scale-invariant relationships, pressure gradient effects, and turbulence production mechanisms. These features provide the neural network with information in a form that directly reflects the governing equations, reducing the learning burden compared to primitive variables.}
     \label{fig:ch5_physics_overview}

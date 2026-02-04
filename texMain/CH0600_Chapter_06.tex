@@ -12,6 +12,13 @@
 
 This chapter investigates a fundamental question in interpretable machine learning: do neural networks trained on basic flow variables learn to \textit{compute} physics-based quantities internally? \cite{2105_00913_v2, 2006_12483_v1, 1905_03634_v1} By analysing the correlation between hidden layer neuron activations and established turbulence physics features, we demonstrate that neural networks discover architecture-invariant physical relationships \cite{1905_07510_v2, 2210_15384_v1}, providing both interpretability and insights for robust model design \cite{1701_07102_v2, 2312_14902_v1}.
 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{chapter6/chapter6_overview.pdf}
+    \caption{Conceptual overview of the physics-guided hidden layers approach. A single hidden layer network is trained on basic inputs ($y^+$, $u^+$, $v^+$, $\partial p/\partial x$, $\partial p/\partial y$, $y_T^+$) to predict wall quantities. Neuron activations are then correlated with the 58-feature physics library to identify architecture-invariant features that emerge across networks of different sizes (8, 16, 32 neurons), revealing which physical relationships the network has learned to compute internally.}
+    \label{fig:ch6_overview}
+\end{figure}
+
 \section{Introduction and Motivation}
 \label{sec:ch6_introduction}
 

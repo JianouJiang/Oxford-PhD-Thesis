@@ -12,6 +12,13 @@
 
 The preceding chapters developed wall function models through data-driven feature engineering (Chapter~\ref{chap:physics_features}) and discovered physics relationships through neuron correlation analysis (Chapter~\ref{chap:neurons}). This chapter takes a complementary approach: rather than hoping the network discovers physics implicitly, we encode conservation laws directly into the training objective \cite{raissi2019physics, 2511_14497_v1, 2503_17704_v1}. The resulting Physics-Informed Neural Network (PINN) framework constrains learning to solutions that satisfy---or approximately satisfy---the governing equations of fluid mechanics \cite{2205_08663_v2, 2409_19851_v1, 2301_00106_v2}.
 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{chapter7/chapter7_overview.pdf}
+    \caption{Conceptual overview of the physics-constrained loss (PINN) approach. The neural network receives stencil inputs and produces predictions for wall shear stress $\tau_w$ and heat flux $q_w$. The total loss function combines the standard data loss (MSE against ground truth) with physics residual terms computed via finite differences on the stencil. These residuals enforce local conservation of momentum ($R_u$, $R_v$), energy ($R_T$), and mass ($R_\text{div}$), constraining the network to produce physically consistent predictions.}
+    \label{fig:ch7_overview}
+\end{figure}
+
 \section{Physics-Informed Neural Networks for Wall Functions}
 \label{sec:pinn_intro}
 

@@ -1,0 +1,488 @@
+% !TeX root = ../ThesisMain.tex
+% !TeX program = XeLaTeX
+% !TeX encoding = UTF-8
+% !TeX spellcheck = en_GB
+
+\documentclass[../ThesisMain]{subfiles}
+\ifSubfilesClassLoaded{}{}%
+
+\begin{document}
+\doublespacing%
+
+\chapter*{Code and Data Availability}
+\addcontentsline{toc}{chapter}{Code and Data Availability}
+\markboth{Code and Data Availability}{Code and Data Availability}
+
+\section*{Repository Information}
+
+All source code, training data, trained models, and analysis scripts developed for this thesis are publicly available in a GitHub repository:
+
+\begin{center}
+\fbox{\parbox{0.85\textwidth}{
+\centering
+\textbf{GitHub Repository}\\[6pt]
+\texttt{https://github.com/JianouJiang/flow2Dtube}\\[6pt]
+\small Licensed under MIT License
+}}
+\end{center}
+
+\noindent The repository is organised into the following primary directories:
+
+\begin{table}[H]
+\centering
+\caption*{\textbf{Repository Structure}}
+\begin{tabular}{ll}
+\toprule
+\textbf{Directory} & \textbf{Contents} \\
+\midrule
+\texttt{BENCHMARKS/} & Experimental benchmark data processing \\
+\texttt{TRAINING\_DATA/} & 244 CFD simulation cases (25,485 samples) \\
+\texttt{FEATURE\_VARIABLES\_AS\_INPUTS/} & Chapter 5: Physics-based feature library \\
+\texttt{FEATURE\_VARIABLES\_AS\_NEURONS/} & Chapter 6: Neuron correlation analysis \\
+\texttt{FEATURE\_VARIABLES\_AS\_PINN/} & Chapter 7: Physics-constrained learning \\
+\texttt{IDENTIFY\_FLOW\_SEPARATION/} & Chapter 8: Separation detection classifiers \\
+\texttt{OPENFOAM\_INTEGRATION/} & Chapter 9: C++ boundary conditions \\
+\texttt{ADDITIONAL\_STUDIES/} & Supplementary experiments \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section*{Chapter-by-Chapter Code Mapping}
+
+The following tables provide a comprehensive mapping between thesis figures, tables, and results and their corresponding source code locations.
+
+\subsection*{Cross-Folder Dependencies}
+
+Several chapters use code from multiple folders. The following summary highlights these dependencies:
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Chapter} & \textbf{Primary Folder} & \textbf{Additional Folders Used} \\
+\midrule
+Chapter 3 & \texttt{TRAINING\_DATA/} & \texttt{BENCHMARKS/} (validation figures) \\
+Chapter 4 & \texttt{FEATURE\_VARIABLES\_AS\_INPUTS/} & \texttt{TRAINING\_DATA/} (data analysis) \\
+Chapter 5 & \texttt{FEATURE\_VARIABLES\_AS\_INPUTS/} & \texttt{TRAINING\_DATA/} (feature extraction) \\
+Chapter 7 & \texttt{FEATURE\_VARIABLES\_AS\_PINN/} & \texttt{FEATURE\_VARIABLES\_AS\_NEURONS/} (L1-PINN) \\
+Chapter 9 & \texttt{OPENFOAM\_INTEGRATION/} & \texttt{BENCHMARKS/} (validation figures) \\
+Chapter 10 & \texttt{ADDITIONAL\_STUDIES/} & All folders (comparative analysis) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%==============================================================================
+\subsection*{Chapter 3: Methodology and Structured Data Generation}
+%==============================================================================
+
+\noindent\textit{Primary code locations: \texttt{TRAINING\_DATA/} and \texttt{BENCHMARKS/}}
+
+\begin{table}[H]
+\centering
+\small
+\caption*{\textbf{Chapter 3 -- Figures and Tables}}
+\begin{tabular}{p{3.5cm}p{8cm}}
+\toprule
+\textbf{Item} & \textbf{Code/Data Location} \\
+\midrule
+\multicolumn{2}{l}{\textit{Main figure generation script:}} \\
+All Chapter 3 figures & \texttt{TRAINING\_DATA/scripts/thesis\_figures/generate\_chapter3\_figures.py} \\
+\midrule
+Figure 3.1 (Data pipeline) & \texttt{TRAINING\_DATA/scripts/generate\_cases.py}, \texttt{mesh\_utils.py} \\
+Figure 3.2 (Geometry family) & \texttt{TRAINING\_DATA/scripts/geometry\_sampling.py} \\
+Figure 3.3 (Parameter space) & \texttt{TRAINING\_DATA/scripts/visualize\_geometries.py} \\
+Figure 3.4 (Mesh comparison) & \texttt{TRAINING\_DATA/scripts/mesh\_sizing.py} \\
+Figure 3.5 (Grid independence) & \texttt{TRAINING\_DATA/scripts/validate\_fine\_mesh.py} \\
+Figure 3.6 (Boundary conditions) & OpenFOAM case files in \texttt{TRAINING\_DATA/data/cases\_WF/} \\
+Figure 3.7 (Residual convergence) & \texttt{TRAINING\_DATA/scripts/visualize\_results.py} \\
+Figure 3.8 (Velocity profiles) & \texttt{BENCHMARKS/turbulent/channel\_flow/benchmark/visualize\_channel\_flow.py} \\
+Figure 3.9 (Diffuser validation) & \texttt{BENCHMARKS/turbulent/diffuser/benchmark/visualize\_diffuser.py} \\
+Figure 3.10 (Heat transfer) & \texttt{BENCHMARKS/turbulent/channel\_flow\_thermal/benchmark/visualize\_channel\_flow\_thermal.py} \\
+Figure 3.11 (BFS geometry) & \texttt{BENCHMARKS/turbulent/backward\_facing\_step/benchmark/visualize\_backward\_facing\_step.py} \\
+Figure 3.12 (BFS $C_f$) & \texttt{BENCHMARKS/turbulent/backward\_facing\_step/openfoam/validate\_bfs.py} \\
+Figure 3.13 (Wall hump) & \texttt{BENCHMARKS/turbulent/wall\_mounted\_hump/benchmark/visualize\_wall\_hump.py} \\
+Figure 3.14 (Periodic hills) & \texttt{BENCHMARKS/turbulent/periodic\_hills/benchmark/visualize\_periodic\_hills.py} \\
+Figure 3.15 (Dataset statistics) & \texttt{TRAINING\_DATA/scripts/visualization.py} \\
+\midrule
+Table 3.1 (Mesh quality) & \texttt{TRAINING\_DATA/scripts/mesh\_utils.py} \\
+Table 3.2 (Schemes) & OpenFOAM \texttt{fvSchemes} in \texttt{TRAINING\_DATA/data/} \\
+Table 3.3 (Relaxation) & OpenFOAM \texttt{fvSolution} in \texttt{TRAINING\_DATA/data/} \\
+Table 3.4 (DNS databases) & \texttt{BENCHMARKS/integrate\_benchmark\_data.py} \\
+Table 3.5 (Benchmark summary) & \texttt{BENCHMARKS/compare\_with\_benchmarks.py} \\
+Table 3.6 (Dataset summary) & \texttt{TRAINING\_DATA/scripts/combine\_datasets.py} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%==============================================================================
+\subsection*{Chapter 4: Data-Driven Velocity and Thermal Wall Functions}
+%==============================================================================
+
+\noindent\textit{Primary code locations: \texttt{FEATURE\_VARIABLES\_AS\_INPUTS/} and \texttt{TRAINING\_DATA/}}
+
+\begin{table}[H]
+\centering
+\small
+\caption*{\textbf{Chapter 4 -- Figures and Tables}}
+\begin{tabular}{p{3.5cm}p{8cm}}
+\toprule
+\textbf{Item} & \textbf{Code/Data Location} \\
+\midrule
+Figure 4.1 (Learning curves) & \texttt{FEATURE\_VARIABLES\_AS\_INPUTS/exp1\_primitive\_only/train\_primitive\_vs\_physics.py} \\
+Figure 4.2 (Predictions) & \texttt{FEATURE\_VARIABLES\_AS\_INPUTS/exp1\_primitive\_only/quick\_figures.py} \\
+Figure 4.3 (WF comparison) & \texttt{FEATURE\_VARIABLES\_AS\_INPUTS/exp1\_primitive\_only/train\_primitive\_vs\_physics.py} \\
+\midrule
+Table 4.1 (Hyperparameter search) & \texttt{FEATURE\_VARIABLES\_AS\_INPUTS/exp3\_hyperparameters/train\_hyperparam\_search.py} \\
+Table 4.2 (Hyperparameter results) & \texttt{FEATURE\_VARIABLES\_AS\_INPUTS/exp3\_hyperparameters/} (results/) \\
+Table 4.3 (Stencil study) & \texttt{FEATURE\_VARIABLES\_AS\_INPUTS/exp2\_stencil\_size/train\_stencil\_study.py} \\
+Table 4.4 (Baseline performance) & \texttt{FEATURE\_VARIABLES\_AS\_INPUTS/exp1\_primitive\_only/} (metrics.json) \\
+Table 4.5 (Traditional comparison) & \texttt{FEATURE\_VARIABLES\_AS\_INPUTS/exp1\_primitive\_only/train\_primitive\_vs\_physics.py} \\
+Table 4.6 (Data sources) & \texttt{FEATURE\_VARIABLES\_AS\_INPUTS/exp6\_data\_source\_study/train\_comparison.py} \\
+Table 4.7 (Flow regime) & \texttt{TRAINING\_DATA/scripts/features.py} \\
+Table 4.8 (Regime performance) & \texttt{FEATURE\_VARIABLES\_AS\_INPUTS/exp5\_final\_model/robustness\_verification.py} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%==============================================================================
+\subsection*{Chapter 5: Physics-Based Feature Variables as Network Inputs}
+%==============================================================================
+
+\noindent\textit{Primary code location: \texttt{FEATURE\_VARIABLES\_AS\_INPUTS/}}
+
+\begin{table}[H]
+\centering
+\small
+\caption*{\textbf{Chapter 5 -- Figures and Tables}}
+\begin{tabular}{p{3.5cm}p{8cm}}
+\toprule
+\textbf{Item} & \textbf{Code/Data Location} \\
+\midrule
+\multicolumn{2}{l}{\textit{Main figure generation scripts:}} \\
+All Chapter 5 figures & \texttt{FEATURE\_VARIABLES\_AS\_INPUTS/exp1\_primitive\_only/chapter5\_comprehensive\_figures.py} \\
+& \texttt{FEATURE\_VARIABLES\_AS\_INPUTS/exp1\_primitive\_only/final\_chapter5\_figures.py} \\
+& \texttt{FEATURE\_VARIABLES\_AS\_INPUTS/exp1\_primitive\_only/chapter5\_final.py} \\
+\midrule
+Figure 5.1 (Physics overview) & \texttt{exp1\_primitive\_only/comprehensive\_physics\_analysis.py} \\
+Figure 5.2 (Wall function laws) & \texttt{exp1\_primitive\_only/chapter5\_comprehensive\_figures.py} \\
+Figure 5.3 (Velocity profiles) & \texttt{exp1\_primitive\_only/chapter5\_comprehensive\_figures.py} \\
+Figure 5.4 (Pressure gradient) & \texttt{exp1\_primitive\_only/chapter5\_comprehensive\_figures.py} \\
+Figure 5.5 (Flow contours) & \texttt{exp1\_primitive\_only/chapter5\_comprehensive\_figures.py} \\
+Figure 5.6 ($\tau_w$ distribution) & \texttt{exp1\_primitive\_only/chapter5\_comprehensive\_figures.py} \\
+Figure 5.7--5.17 & \texttt{exp1\_primitive\_only/final\_chapter5\_figures.py} \\
+\midrule
+Table 5.1 (Feature summary) & \texttt{TRAINING\_DATA/scripts/features.py} \\
+Table 5.2 (Dataset composition) & \texttt{TRAINING\_DATA/scripts/combine\_datasets.py} \\
+Table 5.3 (Parameter ranges) & \texttt{TRAINING\_DATA/scripts/config.py} \\
+Table 5.4 (Feature ranges) & \texttt{exp1\_primitive\_only/train\_primitive\_vs\_physics.py} \\
+Table 5.5 (Primitive vs physics) & \texttt{exp1\_primitive\_only/train\_primitive\_vs\_physics.py} \\
+Table 5.6 (Separation comparison) & \texttt{exp1\_primitive\_only/comprehensive\_physics\_analysis.py} \\
+Table 5.7 (Traditional WF) & \texttt{exp1\_primitive\_only/train\_primitive\_vs\_physics.py} \\
+Table 5.8 (Cross-evaluation) & \texttt{exp6\_data\_source\_study/train\_comparison.py} \\
+Table 5.9 (Core features) & \texttt{config.py} (feature definitions) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%==============================================================================
+\subsection*{Chapter 6: Physics-Based Feature Variables as Hidden Layer Neurons}
+%==============================================================================
+
+\noindent\textit{Primary code location: \texttt{FEATURE\_VARIABLES\_AS\_NEURONS/}}
+
+\begin{table}[H]
+\centering
+\small
+\caption*{\textbf{Chapter 6 -- Figures and Tables}}
+\begin{tabular}{p{3.5cm}p{8cm}}
+\toprule
+\textbf{Item} & \textbf{Code/Data Location} \\
+\midrule
+\multicolumn{2}{l}{\textit{Main experiment scripts:}} \\
+All experiments & \texttt{FEATURE\_VARIABLES\_AS\_NEURONS/run\_all\_experiments.py} \\
+\midrule
+Figure 6.1 (Top correlations) & \texttt{experiments/exp2\_neuron\_correlation/compute\_correlations.py} \\
+Figure 6.2 (Correlation heatmap) & \texttt{experiments/exp2\_neuron\_correlation/compute\_correlations.py} \\
+Figure 6.3 (Architecture invariance) & \texttt{experiments/exp4\_architecture\_comparison/architecture\_invariance.py} \\
+Figure 6.4 (Network interpretation) & \texttt{utils/visualization.py} \\
+Figure 6.5--6.7 (Hybrid) & \texttt{experiments/exp3\_neuron\_replacement/replace\_neurons.py} \\
+Figure 6.8--6.11 & \texttt{experiments/exp5\_data\_source\_study/compare\_sources.py} \\
+\midrule
+Table 6.1 (Basic inputs) & \texttt{config.py} \\
+Table 6.2 (Accuracy) & \texttt{experiments/exp1\_train\_l1pinn/train\_l1pinn.py} \\
+Table 6.3 (Top neurons) & \texttt{experiments/exp2\_neuron\_correlation/compute\_correlations.py} \\
+Table 6.4 (Invariant features) & \texttt{experiments/exp4\_architecture\_comparison/architecture\_invariance.py} \\
+Table 6.5--6.8 (Hybrid) & \texttt{experiments/exp3\_neuron\_replacement/replace\_neurons.py} \\
+Table 6.9--6.11 (Data sources) & \texttt{experiments/exp5\_data\_source\_study/compare\_sources.py} \\
+Table 6.12--6.14 & \texttt{utils/correlations.py}, \texttt{utils/replacement.py} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%==============================================================================
+\subsection*{Chapter 7: Physics-Constrained Learning}
+%==============================================================================
+
+\noindent\textit{Primary code locations: \texttt{FEATURE\_VARIABLES\_AS\_PINN/} and \texttt{FEATURE\_VARIABLES\_AS\_NEURONS/}}
+
+\vspace{0.5em}
+\noindent\textbf{Note:} Chapter 7 uses code from \emph{two} folders due to the L1-PINN architecture developed in Chapter 6.
+
+\begin{table}[H]
+\centering
+\small
+\caption*{\textbf{Chapter 7 -- Figures and Tables}}
+\begin{tabular}{p{3.5cm}p{8cm}}
+\toprule
+\textbf{Item} & \textbf{Code/Data Location} \\
+\midrule
+\multicolumn{2}{l}{\textit{Main experiment scripts:}} \\
+PINN experiments & \texttt{FEATURE\_VARIABLES\_AS\_PINN/run\_pinn\_experiments.py} \\
+Chapter 7 results & \texttt{FEATURE\_VARIABLES\_AS\_NEURONS/run\_chapter7\_experiments.py} (cross-ref) \\
+\midrule
+Figure 7.1 (PINN summary) & \texttt{FEATURE\_VARIABLES\_AS\_PINN/run\_pinn\_experiments.py} \\
+Figure 7.2 (Predictions) & \texttt{FEATURE\_VARIABLES\_AS\_PINN/utils/visualization.py} \\
+Figure 7.3 (Feature suitability) & \texttt{FEATURE\_VARIABLES\_AS\_PINN/run\_pinn\_experiments.py} \\
+Figure 7.4 (Physics ablation) & \texttt{FEATURE\_VARIABLES\_AS\_PINN/run\_pinn\_experiments.py} \\
+Figure 7.5 (Loss evolution) & \texttt{FEATURE\_VARIABLES\_AS\_PINN/run\_pinn\_experiments.py} \\
+\midrule
+Table 7.1 (PINN results) & \texttt{FEATURE\_VARIABLES\_AS\_PINN/run\_pinn\_experiments.py} \\
+Table 7.2 (Chapter comparison) & \texttt{FEATURE\_VARIABLES\_AS\_PINN/run\_pinn\_experiments.py} \\
+\midrule
+\multicolumn{2}{l}{\textit{Supporting code:}} \\
+Physics residual computation & \texttt{FEATURE\_VARIABLES\_AS\_PINN/physics/residuals.py} \\
+Finite difference methods & \texttt{FEATURE\_VARIABLES\_AS\_PINN/physics/finite\_differences.py} \\
+PINN model architecture & \texttt{FEATURE\_VARIABLES\_AS\_PINN/models/pinn\_model.py} \\
+L1-PINN architecture & \texttt{FEATURE\_VARIABLES\_AS\_NEURONS/utils/l1pinn.py} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%==============================================================================
+\subsection*{Chapter 8: Identification of Flow Separation}
+%==============================================================================
+
+\noindent\textit{Primary code location: \texttt{IDENTIFY\_FLOW\_SEPARATION/}}
+
+\begin{table}[H]
+\centering
+\small
+\caption*{\textbf{Chapter 8 -- Figures and Tables}}
+\begin{tabular}{p{3.5cm}p{8cm}}
+\toprule
+\textbf{Item} & \textbf{Code/Data Location} \\
+\midrule
+\multicolumn{2}{l}{\textit{Main scripts:}} \\
+All Chapter 8 figures & \texttt{IDENTIFY\_FLOW\_SEPARATION/generate\_chapter8\_figures.py} \\
+All experiments & \texttt{IDENTIFY\_FLOW\_SEPARATION/run\_all\_experiments.py} \\
+Fast experiments & \texttt{IDENTIFY\_FLOW\_SEPARATION/run\_experiments\_fast.py} \\
+\midrule
+Figure 8.1 (Separation flow) & \texttt{generate\_chapter8\_figures.py} \\
+Figure 8.2 (Classifier comparison) & \texttt{utils/classifiers.py} \\
+Figure 8.3 (Generalization) & \texttt{generate\_chapter8\_figures.py} \\
+Figure 8.4--8.5 (Hybrid) & \texttt{generate\_chapter8\_figures.py} \\
+Figure 8.6 (Spatial detection) & \texttt{generate\_chapter8\_figures.py} \\
+\midrule
+Table 8.1 (Distribution shift) & \texttt{utils/labeling.py} \\
+Table 8.2 (Classifiers) & \texttt{config.py} \\
+Table 8.3 (Baseline results) & \texttt{run\_all\_experiments.py} \\
+Table 8.4 (Confusion matrix) & \texttt{utils/classifiers.py} \\
+Table 8.5 (Minimal features) & \texttt{utils/feature\_selection.py} \\
+Table 8.6 (Physics constrained) & \texttt{utils/physics\_losses.py} \\
+Table 8.7--8.8 & \texttt{run\_all\_experiments.py} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%==============================================================================
+\subsection*{Chapter 9: OpenFOAM Integration and Comprehensive Evaluation}
+%==============================================================================
+
+\noindent\textit{Primary code locations: \texttt{OPENFOAM\_INTEGRATION/} and \texttt{BENCHMARKS/}}
+
+\vspace{0.5em}
+\noindent\textbf{Note:} Chapter 9 validation figures use benchmark data and visualization scripts from the \texttt{BENCHMARKS/} folder.
+
+\begin{table}[H]
+\centering
+\small
+\caption*{\textbf{Chapter 9 -- Figures and Tables}}
+\begin{tabular}{p{3.5cm}p{8cm}}
+\toprule
+\textbf{Item} & \textbf{Code/Data Location} \\
+\midrule
+\multicolumn{2}{l}{\textit{Main scripts:}} \\
+Thesis validation figures & \texttt{BENCHMARKS/generate\_thesis\_validation\_figures.py} \\
+Model training & \texttt{OPENFOAM\_INTEGRATION/scripts/train\_models.py} \\
+Model export & \texttt{OPENFOAM\_INTEGRATION/scripts/export\_models.py} \\
+Experiment runner & \texttt{OPENFOAM\_INTEGRATION/scripts/run\_experiments.py} \\
+Results evaluation & \texttt{OPENFOAM\_INTEGRATION/scripts/evaluate\_results.py} \\
+\midrule
+\multicolumn{2}{l}{\textit{Benchmark validation (from BENCHMARKS/):}} \\
+Figure 9.2--9.7 (Validation) & \texttt{BENCHMARKS/turbulent/*/openfoam/validate\_*.py} \\
+BFS validation & \texttt{BENCHMARKS/turbulent/backward\_facing\_step/openfoam/validate\_backward\_facing\_step.py} \\
+Periodic hills & \texttt{BENCHMARKS/turbulent/periodic\_hills/openfoam/validate\_periodic\_hills.py} \\
+Wall hump & \texttt{BENCHMARKS/turbulent/wall\_mounted\_hump/openfoam/validate\_wall\_hump.py} \\
+Thermal validation & \texttt{BENCHMARKS/turbulent/*\_thermal/openfoam/validate\_*\_thermal.py} \\
+\midrule
+\multicolumn{2}{l}{\textit{OpenFOAM integration (from OPENFOAM\_INTEGRATION/):}} \\
+Figure 9.1 (Architecture) & \texttt{scripts/export\_models.py} \\
+Figure 9.8--9.9 (Timing) & \texttt{scripts/evaluate\_results.py} \\
+Figure 9.10--9.15 (3D cases) & \texttt{scripts/run\_experiments.py} \\
+Figure 9.16--9.22 & \texttt{scripts/evaluate\_results.py} \\
+\midrule
+Table 9.1--9.14 & \texttt{OPENFOAM\_INTEGRATION/scripts/evaluate\_results.py} \\
+& \texttt{BENCHMARKS/compare\_with\_benchmarks.py} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%==============================================================================
+\subsection*{Chapter 10: Conclusion and Future Work}
+%==============================================================================
+
+\noindent\textit{Primary code location: \texttt{ADDITIONAL\_STUDIES/}}
+
+\begin{table}[H]
+\centering
+\small
+\caption*{\textbf{Chapter 10 -- Figures and Tables}}
+\begin{tabular}{p{3.5cm}p{8cm}}
+\toprule
+\textbf{Item} & \textbf{Code/Data Location} \\
+\midrule
+Table 10.1 (Method comparison) & \texttt{ADDITIONAL\_STUDIES/run\_all\_experiments.py} \\
+& \texttt{ADDITIONAL\_STUDIES/compare\_traditional\_wf.py} \\
+Table 10.2 (Method selection) & \texttt{ADDITIONAL\_STUDIES/evaluate\_separation.py} \\
+\midrule
+\multicolumn{2}{l}{\textit{Supporting experiments in ADDITIONAL\_STUDIES/:}} \\
+WF vs no-WF study & \texttt{exp1\_wf\_vs\_nowf/train\_with\_wf.py} \\
+Attached vs separated & \texttt{exp2\_attached\_to\_separated/train\_attached\_only.py} \\
+Data augmentation & \texttt{exp3\_experimental\_augmentation/train\_with\_augmentation.py} \\
+Distribution shift & \texttt{exp4\_distribution\_shift/analyze\_distributions.py} \\
+Reynolds analogy & \texttt{exp5\_reynolds\_analogy/analyze\_velocity\_thermal.py} \\
+DNS/experimental data & \texttt{exp6\_real\_dns\_experimental/train\_with\_real\_benchmarks.py} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%==============================================================================
+\section*{Key Scripts and Entry Points}
+%==============================================================================
+
+The following scripts serve as main entry points for reproducing the key results:
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{p{5.5cm}p{6.5cm}}
+\toprule
+\textbf{Script} & \textbf{Purpose} \\
+\midrule
+\multicolumn{2}{l}{\textit{Data generation:}} \\
+\texttt{TRAINING\_DATA/scripts/generate\_cases.py} & Generate CFD simulation cases \\
+\texttt{TRAINING\_DATA/scripts/run\_simulations.py} & Run all 244 training simulations \\
+\texttt{TRAINING\_DATA/scripts/extract\_and\_pair.py} & Extract training data pairs \\
+\midrule
+\multicolumn{2}{l}{\textit{Chapter-specific experiments:}} \\
+\texttt{FEATURE\_VARIABLES\_AS\_INPUTS/run\_all\_stages.py} & Chapter 4--5 experiments \\
+\texttt{FEATURE\_VARIABLES\_AS\_NEURONS/run\_all\_experiments.py} & Chapter 6 experiments \\
+\texttt{FEATURE\_VARIABLES\_AS\_PINN/run\_pinn\_experiments.py} & Chapter 7 PINN experiments \\
+\texttt{IDENTIFY\_FLOW\_SEPARATION/run\_all\_experiments.py} & Chapter 8 experiments \\
+\texttt{OPENFOAM\_INTEGRATION/scripts/run\_experiments.py} & Chapter 9 integration \\
+\texttt{ADDITIONAL\_STUDIES/run\_all\_experiments.py} & Chapter 10 supplementary studies \\
+\midrule
+\multicolumn{2}{l}{\textit{Figure generation:}} \\
+\texttt{TRAINING\_DATA/scripts/thesis\_figures/generate\_chapter3\_figures.py} & Chapter 3 figures \\
+\texttt{FEATURE\_VARIABLES\_AS\_INPUTS/exp1\_primitive\_only/chapter5\_comprehensive\_figures.py} & Chapter 5 figures \\
+\texttt{IDENTIFY\_FLOW\_SEPARATION/generate\_chapter8\_figures.py} & Chapter 8 figures \\
+\texttt{BENCHMARKS/generate\_thesis\_validation\_figures.py} & Chapter 9 validation figures \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+%==============================================================================
+\section*{Data Availability}
+%==============================================================================
+
+\subsection*{Training Data}
+
+The complete training dataset comprising 244 simulation cases is available in:
+\begin{itemize}
+    \item \texttt{TRAINING\_DATA/data/cases\_WF/} -- Wall-modelled (coarse mesh) simulations
+    \item \texttt{TRAINING\_DATA/data/cases\_WR/} -- Wall-resolved (fine mesh) simulations
+\end{itemize}
+
+\noindent Each case directory contains:
+\begin{itemize}
+    \item OpenFOAM case files (\texttt{0/}, \texttt{constant/}, \texttt{system/})
+    \item Converged solution fields (\texttt{U}, \texttt{p}, \texttt{T}, \texttt{k}, \texttt{omega}, \texttt{nut})
+    \item Post-processed wall quantities (\texttt{wallShearStress}, \texttt{yPlus})
+    \item Extracted stencil features (\texttt{stencil\_features.csv})
+\end{itemize}
+
+\subsection*{Benchmark Data}
+
+Experimental and DNS benchmark data used for validation:
+\begin{itemize}
+    \item \texttt{BENCHMARKS/turbulent/backward\_facing\_step/} -- Driver \& Seegmiller (1985)
+    \item \texttt{BENCHMARKS/turbulent/periodic\_hills/} -- Breuer et al. (2009)
+    \item \texttt{BENCHMARKS/turbulent/wall\_mounted\_hump/} -- NASA wall-mounted hump
+    \item \texttt{BENCHMARKS/turbulent/diffuser/} -- Buice \& Eaton diffuser (1997)
+    \item \texttt{BENCHMARKS/turbulent/channel\_flow/} -- Moser, Kim \& Mansour DNS (1999)
+    \item \texttt{BENCHMARKS/turbulent/flat\_plate/} -- Flat plate boundary layer
+    \item \texttt{BENCHMARKS/turbulent/*\_thermal/} -- Thermal benchmark cases
+    \item \texttt{BENCHMARKS/laminar/} -- Laminar validation (Blasius, Pohlhausen)
+    \item \texttt{BENCHMARKS/transitional/} -- Transitional flow (T3A, T3AM, SK)
+\end{itemize}
+
+\noindent Key benchmark processing scripts:
+\begin{itemize}
+    \item \texttt{BENCHMARKS/visualize\_benchmarks.py} -- Master visualization script
+    \item \texttt{BENCHMARKS/compare\_with\_benchmarks.py} -- Comparison analysis
+    \item \texttt{BENCHMARKS/integrate\_benchmark\_data.py} -- Data integration
+    \item \texttt{BENCHMARKS/train\_with\_benchmarks.py} -- Benchmark-augmented training
+\end{itemize}
+
+\subsection*{Trained Models}
+
+Pre-trained neural network models are provided for direct use:
+\begin{itemize}
+    \item \texttt{FEATURE\_VARIABLES\_AS\_INPUTS/models/} -- Physics-feature models
+    \item \texttt{FEATURE\_VARIABLES\_AS\_NEURONS/models/} -- Interpretable models
+    \item \texttt{FEATURE\_VARIABLES\_AS\_PINN/models/} -- PINN models
+    \item \texttt{IDENTIFY\_FLOW\_SEPARATION/models/} -- Separation classifiers
+    \item \texttt{OPENFOAM\_INTEGRATION/models/} -- Production-ready ONNX models
+\end{itemize}
+
+%==============================================================================
+\section*{Software Dependencies}
+%==============================================================================
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Software} & \textbf{Version} & \textbf{Purpose} \\
+\midrule
+OpenFOAM & v10 & CFD simulations \\
+Python & 3.9+ & ML training and analysis \\
+PyTorch & 2.0+ & Neural network training \\
+scikit-learn & 1.0+ & Traditional ML classifiers \\
+NumPy & 1.21+ & Numerical computations \\
+Matplotlib & 3.5+ & Visualisation \\
+LibTorch & 2.0+ & C++ neural network inference \\
+ONNX Runtime & 1.12+ & Cross-platform model deployment \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section*{Reproducibility}
+
+All experiments can be reproduced using the provided scripts. Random seeds are fixed for reproducibility. Complete instructions are provided in the repository README files.
+
+\vspace{1em}
+\noindent\textit{For questions or issues regarding the code, please open an issue on the GitHub repository or contact the author.}
+
+\end{document}

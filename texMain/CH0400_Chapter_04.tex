@@ -12,6 +12,13 @@
 
 Chapter~\ref{chap:methodology} established the dataset comprising paired coarse-mesh inputs and fine-mesh ground truth for wall shear stress and heat flux prediction. This chapter develops the machine learning framework for learning this mapping, establishing both the theoretical foundations of neural network regression and the baseline performance against which physics-informed approaches will be evaluated \cite{ling2016, 1701_07102_v2, 2005_09023_v2, 2312_14902_v1, 2206_05226_v2}. The presentation begins with neural network fundamentals that underpin all subsequent chapters, proceeds through model development and optimization, presents comprehensive results including comparison with traditional wall functions, and concludes with analysis of limitations that motivate the physics-informed methods developed in Chapters~\ref{chap:physics_features}--\ref{chap:pinn}.
 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{chapter4/chapter4_overview.pdf}
+    \caption{Conceptual overview of the data-driven baseline approach. The $3 \times 5$ local stencil containing primitive flow variables ($U$, $V$, $P$, $T$) is flattened and normalized before being processed by a multilayer perceptron (MLP) to predict wall shear stress $\tau_w$ and wall heat flux $q_w$. This purely data-driven architecture serves as the baseline against which physics-informed approaches are evaluated.}
+    \label{fig:ch4_overview}
+\end{figure}
+
 \section{Neural Network Fundamentals}
 \label{sec:ch4_nn_fundamentals}
 

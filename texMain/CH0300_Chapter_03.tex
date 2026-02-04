@@ -15,15 +15,9 @@ This chapter presents the comprehensive methodology for generating structured tr
 \section{Overview of the Data Generation Framework}
 \label{sec:ch3_overview}
 
-The central challenge in developing data-driven wall functions is obtaining paired training data that relates coarse mesh flow fields to accurate wall quantities. Traditional wall-resolved simulations provide ground truth but are computationally expensive \cite{moser1999, lee2015}, while coarse mesh simulations with standard wall functions may not accurately predict wall quantities in non-equilibrium flows \cite{launder1974, 2309_02109_v1}. Our approach leverages a dual-mesh methodology that addresses this challenge:
+The central challenge in developing data-driven wall functions is obtaining paired training data that relates coarse mesh flow fields to accurate wall quantities. Traditional wall-resolved simulations provide ground truth but are computationally expensive \cite{moser1999, lee2015}, while coarse mesh simulations with standard wall functions may not accurately predict wall quantities in non-equilibrium flows \cite{launder1974, 2309_02109_v1}. Our approach leverages a dual-mesh methodology that addresses this challenge through three complementary components.
 
-\begin{enumerate}
-    \item \textbf{Fine mesh simulations}: Wall-resolved meshes with $y^+ < 2$ at the first cell provide ground truth for wall shear stress $\tau_w$ and wall heat flux $q_w$ \cite{2006_12483_v1, 1905_03634_v1}. These simulations integrate the turbulence equations directly to the wall without wall functions.
-
-    \item \textbf{Coarse mesh simulations}: Practical meshes with $y^+ \approx 5$--$10$ at the first cell provide input features representing what a CFD solver would have access to during inference \cite{2404_03542_v1, 2202_04233_v3}. These are the meshes that would typically require wall functions in production simulations.
-
-    \item \textbf{Stencil extraction}: Local neighborhoods of cells are extracted from the coarse mesh to capture spatial context around each wall location, providing the neural network with information about the local flow structure.
-\end{enumerate}
+Fine mesh simulations employ wall-resolved meshes with $y^+ < 2$ at the first cell to provide ground truth for wall shear stress $\tau_w$ and wall heat flux $q_w$ \cite{2006_12483_v1, 1905_03634_v1}. These simulations integrate the turbulence equations directly to the wall without wall functions, ensuring that the computed wall gradients are not contaminated by wall function approximations. Coarse mesh simulations use practical meshes with $y^+ \approx 5$--$10$ at the first cell, providing input features that represent what a CFD solver would have access to during inference \cite{2404_03542_v1, 2202_04233_v3}. These are the meshes that would typically require wall functions in production simulations, making the learned mapping directly applicable to real-world applications. Stencil extraction completes the methodology by gathering local neighborhoods of cells from the coarse mesh to capture spatial context around each wall location, providing the neural network with information about the local flow structure that extends beyond the immediate wall-adjacent cell.
 
 Figure~\ref{fig:data_pipeline} illustrates the complete data generation pipeline, showing how geometry parameters flow through mesh generation, CFD simulation, and feature extraction to produce the final training dataset.
 
@@ -53,28 +47,14 @@ Figure~\ref{fig:geometry_types} shows all geometry variations used for training 
 \subsection{Diffuser Geometries}
 \label{sec:ch3_diffuser}
 
-Diffuser configurations feature expanding channels that create adverse pressure gradients (APG), representing challenging conditions where traditional wall functions often exhibit significant errors \cite{driver1985, breuer2009, 2509_05886_v1}. The geometry is parameterized by three independent variables:
-
-\begin{itemize}
-    \item \textbf{Expansion ratio (ER)}: Defined as the ratio of outlet to inlet height, $\text{ER} = H_{out}/H_{in}$. Values range from 1.5 to 5.5, covering mild to severe expansions.
-
-    \item \textbf{Divergence angle ($\theta$)}: The half-angle of the expanding section measured from the horizontal. Values range from $2°$ to $20°$, with larger angles producing stronger adverse pressure gradients.
-
-    \item \textbf{Reynolds number ($Re$)}: Based on inlet conditions, $Re = U_{in} H_{in} / \nu$. Values range from 8,000 to 24,000, spanning the turbulent regime.
-\end{itemize}
+Diffuser configurations feature expanding channels that create adverse pressure gradients (APG), representing challenging conditions where traditional wall functions often exhibit significant errors \cite{driver1985, breuer2009, 2509_05886_v1}. The geometry is parameterized by three independent variables. The expansion ratio, defined as the ratio of outlet to inlet height $\text{ER} = H_{out}/H_{in}$, ranges from 1.5 to 5.5, covering mild to severe expansions. The divergence angle $\theta$, measured as the half-angle of the expanding section from the horizontal, ranges from $2°$ to $20°$, with larger angles producing stronger adverse pressure gradients. The Reynolds number, based on inlet conditions as $Re = U_{in} H_{in} / \nu$, ranges from 8,000 to 24,000, spanning the turbulent regime relevant to industrial applications.
 
 The diffuser geometry consists of three sections: an inlet development region where the channel height remains constant, an expansion region where the height increases linearly, and an outlet region that allows the flow to recover. This configuration ensures that the flow is fully developed before encountering the pressure gradient, isolating the APG effects from inlet effects.
 
 \subsection{Nozzle Geometries}
 \label{sec:ch3_nozzle}
 
-Nozzle configurations feature contracting channels that create favorable pressure gradients (FPG), representing accelerating flows \cite{clauser1954, 2408_08897_v1}. Under FPG conditions, the boundary layer thins and the flow remains attached even at high acceleration rates. The nozzle geometries use the same parameterization as diffusers but with contraction ratios:
-
-\begin{itemize}
-    \item \textbf{Contraction ratio}: $\text{CR} = H_{in}/H_{out} > 1$, ranging from 1.25 to 5.0
-    \item \textbf{Convergence angle}: Half-angle of the contracting section, $2°$ to $15°$
-    \item \textbf{Reynolds number}: Same range as diffusers, 8,000 to 24,000
-\end{itemize}
+Nozzle configurations feature contracting channels that create favorable pressure gradients (FPG), representing accelerating flows \cite{clauser1954, 2408_08897_v1}. Under FPG conditions, the boundary layer thins and the flow remains attached even at high acceleration rates. The nozzle geometries use the same parameterization as diffusers but with contraction ratios. The contraction ratio $\text{CR} = H_{in}/H_{out} > 1$ ranges from 1.25 to 5.0, while the convergence angle (the half-angle of the contracting section) varies from $2°$ to $15°$. The Reynolds number spans the same range as diffusers, from 8,000 to 24,000.
 
 Including both diffuser and nozzle geometries ensures that the neural network learns to distinguish between APG and FPG conditions and can predict wall quantities accurately in both regimes.
 
@@ -99,31 +79,11 @@ Mesh quality is critical for obtaining accurate wall quantities from CFD simulat
 
 \subsection{Fine Mesh Specifications}
 
-The fine mesh is designed to resolve the viscous sublayer and buffer region of the turbulent boundary layer, enabling direct integration of the turbulence equations to the wall. Key specifications include:
-
-\begin{itemize}
-    \item \textbf{First cell height}: Sized to achieve $y^+ < 2$ at the first cell center under all flow conditions. This ensures that the viscous sublayer ($y^+ < 5$) is resolved with multiple cells.
-
-    \item \textbf{Wall-normal expansion ratio}: A geometric progression with ratio 1.1 is used to gradually increase cell height away from the wall. This provides smooth transitions while maintaining adequate resolution in the buffer layer ($5 < y^+ < 30$) and log-law region ($y^+ > 30$).
-
-    \item \textbf{Streamwise resolution}: 200--400 cells in the streamwise direction, with clustering near the inlet and in regions of strong pressure gradient.
-
-    \item \textbf{Total cell count}: Typically 40,000--80,000 cells for 2D simulations, depending on geometry.
-\end{itemize}
+The fine mesh is designed to resolve the viscous sublayer and buffer region of the turbulent boundary layer, enabling direct integration of the turbulence equations to the wall. The first cell height is sized to achieve $y^+ < 2$ at the first cell center under all flow conditions, ensuring that the viscous sublayer ($y^+ < 5$) is resolved with multiple cells. A geometric progression with expansion ratio 1.1 gradually increases cell height away from the wall, providing smooth transitions while maintaining adequate resolution in the buffer layer ($5 < y^+ < 30$) and log-law region ($y^+ > 30$). The streamwise direction employs 200--400 cells with clustering near the inlet and in regions of strong pressure gradient. The resulting meshes typically contain 40,000--80,000 cells for 2D simulations, depending on geometry.
 
 \subsection{Coarse Mesh Specifications}
 
-The coarse mesh represents a practical mesh density that would typically be used with wall functions in production simulations:
-
-\begin{itemize}
-    \item \textbf{First cell height}: Sized to achieve $y^+ \approx 5$--$10$ at the first cell center. This places the first cell in the buffer layer or lower log-law region.
-
-    \item \textbf{Wall-normal expansion ratio}: A geometric progression with ratio 1.2 provides faster growth away from the wall.
-
-    \item \textbf{Streamwise resolution}: 50--100 cells in the streamwise direction.
-
-    \item \textbf{Total cell count}: Typically 5,000--15,000 cells, representing a 5--8× reduction from the fine mesh.
-\end{itemize}
+The coarse mesh represents a practical mesh density that would typically be used with wall functions in production simulations. The first cell height is sized to achieve $y^+ \approx 5$--$10$ at the first cell center, placing the first cell in the buffer layer or lower log-law region where wall functions are designed to operate. A geometric progression with expansion ratio 1.2 provides faster growth away from the wall compared to the fine mesh. The streamwise direction employs 50--100 cells, and the resulting meshes typically contain 5,000--15,000 cells, representing a 5--8 times reduction from the fine mesh that reflects the computational savings achievable with wall functions.
 
 Figure~\ref{fig:mesh_comparison} compares the near-wall mesh structure for fine and coarse configurations, highlighting the difference in resolution.
 
@@ -227,26 +187,11 @@ Figure~\ref{fig:boundary_conditions} illustrates the boundary conditions applied
     \label{fig:boundary_conditions}
 \end{figure}
 
-\textbf{Inlet conditions:}
-\begin{itemize}
-    \item Velocity: Uniform profile, $U = U_{in}$
-    \item Turbulent kinetic energy: $k = \frac{3}{2}(U_{in} \cdot TI)^2$, where $TI = 0.05$ (5\% turbulence intensity)
-    \item Specific dissipation rate: $\omega = \frac{k^{0.5}}{C_\mu^{0.25} \cdot l_t}$, where $l_t = 0.07 H_{in}$ is the turbulent length scale
-    \item Temperature: $T = T_{in} = 300$ K
-\end{itemize}
+At the inlet, a uniform velocity profile $U = U_{in}$ is prescribed along with turbulence quantities derived from standard correlations. The turbulent kinetic energy is set as $k = \frac{3}{2}(U_{in} \cdot TI)^2$ using a turbulence intensity of $TI = 0.05$ (5\%), while the specific dissipation rate is computed as $\omega = k^{0.5}/(C_\mu^{0.25} \cdot l_t)$ where the turbulent length scale $l_t = 0.07 H_{in}$ is based on the inlet height. The inlet temperature is fixed at $T_{in} = 300$~K.
 
-\textbf{Outlet conditions:}
-\begin{itemize}
-    \item Pressure: Fixed value, $p = 0$ (gauge)
-    \item All other quantities: Zero gradient
-\end{itemize}
+At the outlet, a fixed gauge pressure $p = 0$ is specified with zero gradient conditions for all other quantities, allowing the flow to exit freely without artificial constraints on the velocity or turbulence profiles.
 
-\textbf{Wall conditions:}
-\begin{itemize}
-    \item Velocity: No-slip, $\mathbf{U} = 0$
-    \item Temperature: Fixed value, $T_w = 330$ K (isothermal)
-    \item Turbulent quantities: Wall functions (coarse) or low-Re treatment (fine)
-\end{itemize}
+At solid walls, the no-slip condition $\mathbf{U} = 0$ is enforced for velocity, and an isothermal boundary condition with $T_w = 330$~K is applied for temperature to drive heat transfer from the heated wall into the fluid. For turbulent quantities, wall functions are applied on the coarse mesh while low-Reynolds-number treatment (direct integration to the wall) is used on the fine mesh.
 
 \subsection{Numerical Schemes and Solver Settings}
 
@@ -458,14 +403,7 @@ Beyond training data augmentation, the benchmarks provide independent validation
 \subsubsection{Simulate-and-Replace Integration Method}
 \label{sec:ch3_simulate_replace}
 
-A key challenge is creating compatible training pairs from benchmark data, since experimental measurements typically provide only wall quantities ($C_f$ versus $x/H$) without the full flow field needed for stencil feature extraction. We address this through a \emph{simulate-and-replace} approach:
-
-\begin{enumerate}
-    \item Run coarse-mesh RANS simulation of the benchmark geometry with the same mesh specifications ($y^+ \approx 5$--$10$) used for the main training data.
-    \item Extract stencil-based input features $\mathbf{X}$ from the coarse mesh, following the same procedure as Section~\ref{sec:ch3_stencil}.
-    \item Interpolate experimental/DNS $C_f$ values to the wall mesh points.
-    \item Create training pairs $(\mathbf{X}_\text{coarse}, C_{f,\text{exp}})$ by replacing the RANS-predicted $C_f$ with the experimental target.
-\end{enumerate}
+A key challenge is creating compatible training pairs from benchmark data, since experimental measurements typically provide only wall quantities ($C_f$ versus $x/H$) without the full flow field needed for stencil feature extraction. We address this through a \emph{simulate-and-replace} approach. First, a coarse-mesh RANS simulation of the benchmark geometry is performed using the same mesh specifications ($y^+ \approx 5$--$10$) as the main training data. Stencil-based input features $\mathbf{X}$ are then extracted from this coarse mesh following the procedure described in Section~\ref{sec:ch3_stencil}. The experimental or DNS $C_f$ values are interpolated to the wall mesh points, and training pairs $(\mathbf{X}_\text{coarse}, C_{f,\text{exp}})$ are created by replacing the RANS-predicted $C_f$ with the experimental target.
 
 This approach is illustrated conceptually:
 \begin{equation}
