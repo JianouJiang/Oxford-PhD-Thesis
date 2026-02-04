@@ -448,28 +448,28 @@
 {} % That is, without page number
 [\addvspace{.5pc}]
 
-% Change the appearance of chapter entries
+% Change the appearance of section entries
 \titlecontents{section}
-[2.3em] % ie, 1.5em (chapter) + 2.3em
+[3.0em] % left margin
 {}
-{\contentslabel{2.3em}}
-{\hspace*{-2.3em}}
+{\contentslabel{3.0em}}
+{\hspace*{-3.0em}}
 {\titlerule*[1pc]{.}\contentspage}
 
-% Change the appearance of chapter entries
+% Change the appearance of subsection entries
 \titlecontents{subsection}
-[4.6em] % ie, 1.5em (chapter) + 2.3em
+[6.5em] % left margin (section indent + subsection label)
 {}
-{\contentslabel{2.3em}}
-{\hspace*{-2.3em}}
+{\contentslabel{3.5em}}
+{\hspace*{-3.5em}}
 {\titlerule*[1pc]{.}\contentspage}
 
-% Change the appearance of chapter entries
+% Change the appearance of subsubsection entries
 \titlecontents{subsubsection}
-[6.9em] % ie, 1.5em (chapter) + 2.3em
+[10.5em] % left margin
 {}
-{\contentslabel{2.3em}}
-{\hspace*{-2.3em}}
+{\contentslabel{4.0em}}
+{\hspace*{-4.0em}}
 {\titlerule*[1pc]{.}\contentspage}
 
 %-----------------------------------------------%
