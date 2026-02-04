@@ -448,6 +448,19 @@
 {} % That is, without page number
 [\addvspace{.5pc}]
 
+% Redefine \appendix to change TOC format for appendix chapters
+\let\oldappendix\appendix
+\renewcommand{\appendix}{%
+  \oldappendix
+  \titlecontents{chapter}
+  [3pc]
+  {\addvspace{1.5pc}\filcenter}
+  {\normalsize\bfseries APPENDIX \thecontentslabel:\enspace}
+  {\huge}
+  {} % That is, without page number
+  [\addvspace{.5pc}]
+}
+
 % Change the appearance of section entries
 \titlecontents{section}
 [3.0em] % left margin
